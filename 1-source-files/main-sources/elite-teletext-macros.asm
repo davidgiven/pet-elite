@@ -18,6 +18,9 @@
 \
 \ ******************************************************************************
 
+SIXELW = 4
+SIXELH = 4
+
 \ ******************************************************************************
 \
 \       Name: SCALE_SIXEL_X
@@ -41,10 +44,18 @@
 
 MACRO SCALE_SIXEL_X
 
+IF _LOADER
+
+ TAX
+ LDA divideBySix, X
+
+ELSE
+
  LSR A                  \ Set A = A / 4, rounded to the nearest integer
  LSR A
- BCC P%+4
  ADC #0
+
+ENDIF
 
 ENDMACRO
 
@@ -72,12 +83,24 @@ ENDMACRO
 
 MACRO SCALE_SIXEL_Y
 
+IF _LOADER
+
+ TAY
+ LDA divideBySix, Y
+
+ELSE
+
  LSR A                  \ Set A = A / 4, rounded to the nearest integer
  LSR A
- BCC P%+4
  ADC #0
 
- ADC #3                 \ Move everything down one character row, so we don't
-                        \ draw pixels on the title row
+ENDIF
+
+ENDMACRO
+
+MACRO SCALE_SIXEL_Y_6
+
+ TAY
+ LDA divideBySix, Y
 
 ENDMACRO

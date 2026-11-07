@@ -20,38 +20,6 @@
 
 \ ******************************************************************************
 \
-\       Name: SetTextYellow
-\       Type: Subroutine
-\   Category: Teletext Elite
-\    Summary: Set yellow text in mode 7
-\
-\ ******************************************************************************
-
-.SetTextYellow
-
- LDX #131               \ Set X to the "yellow text" control code
-
- EQUB &2C               \ Skip the next instruction, so we fall through into
-                        \ PrintCharacter to print the control code
-
-\ ******************************************************************************
-\
-\       Name: SetGraphicsWhite
-\       Type: Subroutine
-\   Category: Teletext Elite
-\    Summary: Set white graphics in mode 7
-\
-\ ******************************************************************************
-
-.SetGraphicsWhite
-
- LDX #151               \ Set X to the "white graphics" control code
-
-                        \ Fall through into PrintCharacter to print the control
-                        \ code
-
-\ ******************************************************************************
-\
 \       Name: PrintCharacter
 \       Type: Subroutine
 \   Category: Teletext Elite
@@ -104,7 +72,7 @@
 
 .ClearMode7Screen
 
- LDA #0                 \ Set A = 0 so we can zero screen memory
+ LDA #&60               \ Set A = &20 so we can clear screen memory
 
  LDX #0                 \ Set a byte counter in X
 
@@ -142,8 +110,8 @@
 
 .stit1
 
- LDA #151               \ This is either the death screen or bit 7 of
- STA MODE7_VRAM         \ displayTitle is set, so style the top row as white
+\ LDA #151               \ This is either the death screen or bit 7 of
+\ STA MODE7_VRAM         \ displayTitle is set, so style the top row as white
                         \ graphics
 
  BNE stit4              \ Jump to stit4 to style the second row as white
@@ -163,8 +131,8 @@
 
                         \ Insert "P100 GALFAX 100" header
 
- LDA #135               \ Style the page number in white text
- STA MODE7_VRAM
+\ LDA #135               \ Style the page number in white text
+\ STA MODE7_VRAM
 
  LDA #'P'               \ Print the "P" of the page number
  STA MODE7_VRAM+1
@@ -175,8 +143,8 @@
  LDA #'3'
  STA MODE7_VRAM+3
 
- LDA #130               \ Style the Galfax title and page counter in green text
- STA MODE7_VRAM+5
+\ LDA #130               \ Style the Galfax title and page counter in green text
+\ STA MODE7_VRAM+5
 
  LDA #'G'               \ Print "GALFAX"
  STA MODE7_VRAM+6
@@ -192,28 +160,29 @@
 
  JSR UpdateGalfaxPage   \ Print the current Galfax page
 
- LDA #152               \ Hide the page title using concealed text
- STA MODE7_VRAM+17
+\ LDA #152               \ Hide the page title using concealed text
+\ STA MODE7_VRAM+17
 
  BNE stit4              \ Jump to stit4 (this BNE is effectively a JMP as A is
                         \ never zero)
 
 .stit3
 
- LDA #132               \ Style the top row as yellow text on blue background
- STA MODE7_VRAM
- LDA #157
- STA MODE7_VRAM+1
- LDA #131
- STA MODE7_VRAM+2
+\ LDA #132               \ Style the top row as yellow text on blue background
+\ STA MODE7_VRAM
+\ LDA #157
+\ STA MODE7_VRAM+1
+\ LDA #131
+\ STA MODE7_VRAM+2
 
 .stit4
 
- LDA #151               \ Style the second row as white graphics
- STA MODE7_VRAM+(1*40)
+\ LDA #151               \ Style the second row as white graphics
+\ STA MODE7_VRAM+(1*40)
 
- LDA #134               \ Style the rest of the screen as cyan text, returning
- JMP SetMode7Colour     \ from the subroutine using a tail call
+ RTS
+\ LDA #134               \ Style the rest of the screen as cyan text, returning
+\ JMP SetMode7Colour     \ from the subroutine using a tail call
 
 \ ******************************************************************************
 \
@@ -237,7 +206,7 @@
 
 .alga1
 
- LDA &7C12,X            \ Fetch the X-th character of the page title
+ LDA MODE7_VRAM+&12,X            \ Fetch the X-th character of the page title
 
  BNE alga2              \ If it it non-zero then we have found a character, so
                         \ jump to alga2
@@ -262,8 +231,8 @@
 
 .alga3
 
- LDA &7C12,X            \ Copy the character from index X to index Y
- STA &7C12,Y
+ LDA MODE7_VRAM+&12,X   \ Copy the character from index X to index Y
+ STA MODE7_VRAM+&12,Y
 
  DEY                    \ Decrement the "to" index to move left to the next
                         \ character
@@ -276,7 +245,7 @@
 .alga4
 
  LDA #' '               \ We now need to blank out the first part of the
- STA &7C12,Y            \ original title, moving left from index Y, so store
+ STA MODE7_VRAM+&12,Y   \ original title, moving left from index Y, so store
                         \ a space in the Y-th character of the title
 
  DEY                    \ Decrement the "to" index to move left to the next
@@ -287,8 +256,8 @@
 
 .alga5
 
- LDA #131               \ Reveal the page title by setting it to yellow text
- STA MODE7_VRAM+17
+\ LDA #131               \ Reveal the page title by setting it to yellow text
+\ STA MODE7_VRAM+17
 
 .alga6
 
@@ -345,143 +314,6 @@
 
 \ ******************************************************************************
 \
-\       Name: StyleStatusMode
-\       Type: Subroutine
-\   Category: Teletext Elite
-\    Summary: Print the control codes to style the Status Mode screen
-\
-\ ******************************************************************************
-
-.StyleStatusMode
-
- LDA #130               \ Set to the "green text" control code
-
- STA &7C90              \ Present system
-
- STA &7CB8              \ Hyperspace system
-
- STA &7CE0              \ Condition
-
- STA &7CFA              \ Fuel
-
- STA &7D22              \ Cash
-
- STA &7D52              \ Legal status
-
- STA &7D74              \ Rating
-
- LDA #131               \ Set to the "yellow text" control code
-
- FOR n, 0, 11
-  STA &7DE5 + n*40      \ Set the name in the 12 equipment rows to yellow
- NEXT
-
- LDA &7CE2              \ If the Condition starts with "R", set the colour to
- CMP #'R'               \ red ("Red")
- BNE mode1
- LDA #129
- STA &7CE0
- BNE mode2
-
-.mode1
-
- CMP #'Y'               \ If the Condition starts with "Y", set the colour to
- BNE mode2              \ yellow ("Yellow")
- LDA #131
- STA &7CE0
-
-.mode2
-
- LDA &7D53              \ If the Legal Status starts with "F", set the colour to
- CMP #'F'               \ red ("Fugitive")
- BNE mode3
- LDA #129
- STA &7D52
- BNE mode4
-
-.mode3
-
- CMP #'O'               \ If the Condition starts with "O", set the colour to
- BNE mode4              \ yellow ("Offender")
- LDA #131
- STA &7CE0
-
-.mode4
-
- RTS                    \ Return from the subroutine
-
-\ ******************************************************************************
-\
-\       Name: StyleInventory
-\       Type: Subroutine
-\   Category: Teletext Elite
-\    Summary: Print the control codes to style the Inventory screen
-\
-\ ******************************************************************************
-
-.StyleInventory
-
- LDA #130               \ Set to the "green text" control code
-
- STA &7C82              \ Fuel
-
- STA &7CAA              \ Cash
-
- LDA #129               \ Set to the "red text" control code
-
- STA &7CCC              \ Large cargo bay
-
- LDA #131               \ Set to the "yellow text" control code
-
- FOR n, 0, 16
-  STA &7D01 + n*40      \ Set the amount in the 17 price rows to yellow
- NEXT
-
- RTS                    \ Return from the subroutine
-
-\ ******************************************************************************
-\
-\       Name: StyleMarketPrices
-\       Type: Subroutine
-\   Category: Teletext Elite
-\    Summary: Print the control codes to style the Market Prices screen
-\
-\ ******************************************************************************
-
-.StyleMarketPrices
-
- LDA #132               \ Style rows 3 and 4 as yellow text, blue background
- STA MODE7_VRAM+(3*40)
- STA MODE7_VRAM+(4*40)
- LDA #157
- STA MODE7_VRAM+(3*40)+1
- STA MODE7_VRAM+(4*40)+1
- LDA #131
- STA MODE7_VRAM+(3*40)+2
- STA MODE7_VRAM+(4*40)+2
-
- LDA #129               \ Set to the "red text" control code
-
- FOR n, 0, 16
-  STA &7D01 + n*40      \ Set the unit in the 17 price rows to red
- NEXT
-
- LDA #130               \ Set to the "green text" control code
-
- FOR n, 0, 16
-  STA &7D04 + n*40      \ Set the price in the 17 price rows to green
- NEXT
-
- LDA #131               \ Set to the "yellow text" control code
-
- FOR n, 0, 16
-  STA &7D0A + n*40      \ Set the price in the 17 price rows to yellow
- NEXT
-
- RTS                    \ Return from the subroutine
-
-\ ******************************************************************************
-\
 \       Name: displayTitle
 \       Type: Variable
 \   Category: Teletext Elite
@@ -500,26 +332,6 @@
 
 \ ******************************************************************************
 \
-\       Name: StyleMessages
-\       Type: Subroutine
-\   Category: Teletext Elite
-\    Summary: Print the control codes for the in-flight messages line
-\
-\ ******************************************************************************
-
-.StyleMessages
-
- LDA #132               \ Style the message row as yellow text, blue background
- STA MODE7_VRAM+(MESSAGE_ROW*40)
- LDA #157
- STA MODE7_VRAM+(MESSAGE_ROW*40)+1
- LDA #131
- STA MODE7_VRAM+(MESSAGE_ROW*40)+2
-
- RTS                    \ Return from the subroutine
-
-\ ******************************************************************************
-\
 \       Name: ClearMessage
 \       Type: Subroutine
 \   Category: Teletext Elite
@@ -532,7 +344,7 @@
  LDA QQ11               \ If this not the space view, jump to mess2 as there is
  BNE mess2              \ no message bar
 
- LDA #0                 \ Set A = 0 so we can zero screen memory
+ LDA #&20               \ Set A = space so we can zero screen memory
 
  LDX #3                 \ Set a byte counter in X
 
@@ -560,13 +372,13 @@
 
 .ClearLines
 
- LDA #131               \ Set A to the "yellow text" control code
+\ LDA #131               \ Set A to the "yellow text" control code
+\
+\ STA MODE7_VRAM+(21*40) \ Set rows 21-23 to display white text
+\ STA MODE7_VRAM+(22*40)
+\ STA MODE7_VRAM+(23*40)
 
- STA MODE7_VRAM+(21*40) \ Set rows 21-23 to display white text
- STA MODE7_VRAM+(22*40)
- STA MODE7_VRAM+(23*40)
-
- LDA #0                 \ Set A = 0 so we can zero screen memory
+ LDA #&20               \ Set A = space so we can zero screen memory
 
  LDX #1                 \ Set a byte counter in X, starting from 1 so we skip
                         \ the graphics/text control character
@@ -581,42 +393,6 @@
 
  CPX #40                \ Loop back until we have cleared the whole row
  BCC clyn1
-
- RTS                    \ Return from the subroutine
-
-\ ******************************************************************************
-\
-\       Name: SetMode7Graphics
-\       Type: Subroutine
-\   Category: Teletext Elite
-\    Summary: Insert a graphics control character at the start of row 2 onwards
-\
-\ ******************************************************************************
-
-.SetMode7Graphics
-
- LDA #151               \ Set A to white graphics
-
-\ ******************************************************************************
-\
-\       Name: SetMode7Colour
-\       Type: Subroutine
-\   Category: Teletext Elite
-\    Summary: Insert a control character at the start of row 2 onwards
-\
-\ ------------------------------------------------------------------------------
-\
-\ Arguments:
-\
-\   A                   The control character to insert
-\
-\ ******************************************************************************
-
-.SetMode7Colour
-
- FOR n, 2, 24
-  STA MODE7_VRAM + n*40 \ Set rows 2 to 24 to the control character in A
- NEXT
 
  RTS                    \ Return from the subroutine
 

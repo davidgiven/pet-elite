@@ -34,15 +34,14 @@
 
                         \ --- Mod: Code added for flicker-free planets: ------->
 
- GUARD &7B00            \ Guard against assembling over the missile ship data,
-                        \ which we have moved to &7B00, into the page before
-                        \ mode 7 screen memory
+ GUARD &7000            \ Guard against assembling over MOSE
 
  _DOCKED = FALSE        \ Set compilation flag for docked vs flight code
 
  _LOADER = FALSE        \ Set compilation flag for loader
 
  INCLUDE "1-source-files/main-sources/elite-teletext-macros.asm"
+ INCLUDE "1-source-files/main-sources/elite-pet.inc"
 
                         \ --- End of added code ------------------------------->
 
@@ -137,7 +136,7 @@
 
  X = 128                \ The centre x-coordinate of the 256 x 192 space view
 
- Y = 96                 \ The centre y-coordinate of the 256 x 192 space view
+ Y = 68 \ 96                 \ The centre y-coordinate of the 256 x 192 space view
 
  f0 = &20               \ Internal key number for red key f0 (Launch, Front)
 
@@ -197,11 +196,14 @@
                         \ such as the video ULA, 6845 CRTC and 6522 VIAs (also
                         \ known as SHEILA)
 
- OSBYTE = &FFF4         \ The address for the OSBYTE routine
+\ OSBYTE = &FFF4         \ The address for the OSBYTE routine
+ OSBYTE = &7009         \ The address for the OSBYTE routine
 
- OSWORD = &FFF1         \ The address for the OSWORD routine
+\ OSWORD = &FFF1         \ The address for the OSWORD routine
+ OSWORD = &7003         \ The address for the OSWORD routine
 
- OSCLI = &FFF7          \ The address for the OSCLI routine
+\ OSCLI = &FFF7          \ The address for the OSCLI vector
+ OSCLI = &7000
 
 \ ******************************************************************************
 \
@@ -215,6 +217,7 @@
 \ ******************************************************************************
 
  ORG &0000
+ GUARD &90
 
 .ZP
 
@@ -690,6 +693,10 @@
  SKIP 1                 \ Temporary storage, typically used as a target value
                         \ for counters when drawing explosion clouds and partial
                         \ circles
+
+ \ The two bytes at &90 are the interrupt vector, used by MOSE.
+ ORG &92
+ GUARD 0
 
 .SWAP
 
@@ -2135,57 +2142,57 @@
 
 .DEEOR
 
-IF _STH_DISC OR _IB_DISC
-
- LDY #0                 \ We're going to work our way through a large number of
-                        \ encrypted bytes, so we set Y to 0 to be the index of
-                        \ the current byte within its page in memory
-
- STY SC                 \ Set the low byte of SC(1 0) to 0
-
- LDX #&13               \ Set X to &13 to be the page number of the current
-                        \ byte, so we start the decryption with the first byte
-                        \ of page &13
-
-.DEEORL
-
- STX SCH                \ Set the high byte of SC(1 0) to X, so SC(1 0) now
-                        \ points to the first byte of page X
-
- TYA                    \ Set A to Y, so A now contains the index of the current
-                        \ byte within its page
-
- EOR (SC),Y             \ EOR the current byte with its index within the page
-
- EOR #&33               \ EOR the current byte with &33
-
- STA (SC),Y             \ Update the current byte
-
-                        \ The current byte is in page X at offset Y, and SC(1 0)
-                        \ points to the first byte of page X, so we just did
-                        \  this:
-                        \
-                        \   (X Y) = (X Y) EOR Y EOR &33
-
- DEY                    \ Decrement the index in Y to point to the next byte
-
- BNE DEEORL             \ Loop back to DEEORL to decrypt the next byte until we
-                        \ have done the whole page
-
- INX                    \ Increment X to point to the next page in memory
-
- CPX #&56               \ Loop back to DEEORL to decrypt the next page until we
- BNE DEEORL             \ reach the start of page &56
+\IF _STH_DISC OR _IB_DISC
+\
+\ LDY #0                 \ We're going to work our way through a large number of
+\                        \ encrypted bytes, so we set Y to 0 to be the index of
+\                        \ the current byte within its page in memory
+\
+\ STY SC                 \ Set the low byte of SC(1 0) to 0
+\
+\ LDX #&13               \ Set X to &13 to be the page number of the current
+\                        \ byte, so we start the decryption with the first byte
+\                        \ of page &13
+\
+\.DEEORL
+\
+\ STX SCH                \ Set the high byte of SC(1 0) to X, so SC(1 0) now
+\                        \ points to the first byte of page X
+\
+\ TYA                    \ Set A to Y, so A now contains the index of the current
+\                        \ byte within its page
+\
+\ EOR (SC),Y             \ EOR the current byte with its index within the page
+\
+\ EOR #&33               \ EOR the current byte with &33
+\
+\ STA (SC),Y             \ Update the current byte
+\
+\                        \ The current byte is in page X at offset Y, and SC(1 0)
+\                        \ points to the first byte of page X, so we just did
+\                        \  this:
+\                        \
+\                        \   (X Y) = (X Y) EOR Y EOR &33
+\
+\ DEY                    \ Decrement the index in Y to point to the next byte
+\
+\ BNE DEEORL             \ Loop back to DEEORL to decrypt the next byte until we
+\                        \ have done the whole page
+\
+\ INX                    \ Increment X to point to the next page in memory
+\
+\ CPX #&56               \ Loop back to DEEORL to decrypt the next page until we
+\ BNE DEEORL             \ reach the start of page &56
+\
+\ JMP RSHIPS             \ Call RSHIPS to launch from the station, load a new set
+\                        \ of ship blueprints and jump into the main game loop
+\
+\ELIF _SRAM_DISC
 
  JMP RSHIPS             \ Call RSHIPS to launch from the station, load a new set
                         \ of ship blueprints and jump into the main game loop
 
-ELIF _SRAM_DISC
-
- JMP RSHIPS             \ Call RSHIPS to launch from the station, load a new set
-                        \ of ship blueprints and jump into the main game loop
-
-ENDIF
+\ENDIF
 
 \ ******************************************************************************
 \
@@ -4942,7 +4949,7 @@ ENDIF
  LDA Y1                 \ Fetch the y-coordinate offset into A and clear the
  AND #%01111111         \ sign bit, so A = |Y1|
 
- CMP #96                \ If |Y1| >= 96 then it's off the screen (as 96 is half
+ CMP #Y                 \ If |Y1| >= 96 then it's off the screen (as 96 is half
  BCS PX4                \ the screen height), so return from the subroutine (as
                         \ PX4 contains an RTS)
 
@@ -4958,7 +4965,7 @@ ENDIF
 .PX2
 
  STA T                  \ Set A = 97 - Y1
- LDA #97                \
+ LDA #Y+1               \
  SBC T                  \ So if Y is positive we display the point up from the
                         \ centre at y-coordinate 97, while a negative Y means
                         \ down from the centre
@@ -6828,7 +6835,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- JSR StyleStatusMode    \ Style the Status Mode screen
+ \ JSR StyleStatusMode    \ Style the Status Mode screen
 
                         \ --- End of added code ------------------------------->
 
@@ -7922,6 +7929,7 @@ ENDIF
                         \ --- And replaced by: -------------------------------->
 
  LDA K3                 \ Store the character at the XC-th character on the row
+ JSR ConvertAscii
  LDY XC                 \ at SC(1 0)
  STA (SC), Y
 
@@ -8007,9 +8015,11 @@ ENDIF
  BIT hideDashboard      \ If bit 7 of hideDashboard is set, then jump to rT9 to
  BMI rT9                \ skip updating the dashboard
 
- LDA #&F0               \ Set SC(1 0) = &7EF0, which is the screen address for
+ LDA #LO(MODE7_VRAM + 18*40 + 31)
+                        \ Set SC(1 0) = &7EF0, which is the screen address for
  STA SC                 \ the character block containing the left end of the
- LDA #&7E               \ top indicator in the right part of the dashboard, the
+ LDA #HI(MODE7_VRAM + 18*40 + 31)
+                        \ top indicator in the right part of the dashboard, the
  STA SC+1               \ one showing our speed
 
                         \ --- End of replacement ------------------------------>
@@ -8243,9 +8253,11 @@ ENDIF
 
                         \ --- And replaced by: -------------------------------->
 
- LDA #&7E               \ Set SC(1 0) = &7ED3, which is the screen address for
+ LDA #HI(MODE7_VRAM + 18*40 + 3)
+                        \ Set SC(1 0) = &7ED3, which is the screen address for
  STA SC+1               \ the character block containing the left end of the
- LDA #&D3               \ top indicator in the left part of the dashboard, the
+ LDA #LO(MODE7_VRAM + 18*40 + 3)
+                        \ top indicator in the left part of the dashboard, the
  STA SC                 \ one showing the forward shield
 
                         \ --- End of replacement ------------------------------>
@@ -8601,9 +8613,6 @@ ENDIF
 
                         \ --- And replaced by: -------------------------------->
 
- LDY #0                 \ Store the colour of the indicator in the character to
- STA (SC),Y             \ the left of the bar
-
  LSR Q                  \ Reduce the indicator value in Q from 0-15 to 0-7, to
                         \ correspond with the number of sixels in a full bar
 
@@ -8611,6 +8620,7 @@ ENDIF
                         \ indicator, using Y as loop counter from 0 to 3 (Y is
                         \ already set to 0)
 
+ LDY #0
 .dilx1
 
  TYA                    \ Set X = Y * 2
@@ -8621,7 +8631,7 @@ ENDIF
  CPX Q                  \ If X < Q, then we need to plot a coloured pixel, so
  BCC dilx2              \ jump to dilx2
 
- LDA #0                 \ Otherwise, plot a black pixel for both sixels in the
+ LDA #32                \ Otherwise, plot a black pixel for both sixels in the
                         \ character
 
  BCS dilx4              \ Jump to dilx4 to plot a black pixel for the first
@@ -8633,7 +8643,7 @@ ENDIF
                         \ Otherwise we need to plot a coloured pixel in the
                         \ first sixel
 
- LDA #164               \ Set A to the character with the middle-left sixel
+ LDA #123               \ Set A to the character with the middle-left sixel
                         \ filled and the middle-right sixel black
 
  INX                    \ Increment X to check the next value
@@ -8648,7 +8658,7 @@ ENDIF
 
 .dilx3
 
- LDA #172               \ Set A to the character with both middle sixels filled
+ LDA #98                \ Set A to the character with both middle sixels filled
 
 .dilx4
 
@@ -8824,13 +8834,13 @@ ENDIF
  TAX                    \ X is the sixel number in the indicator that we need to
                         \ draw next
 
- LDA #172               \ Set A to the character with both middle sixels filled
+ LDA #98                \ Set A to the character with both middle sixels filled
 
  CPX Q                  \ If X <> Q, then we do not need to plot a vertical bar
  BNE dill2              \ in the first column, so jump to dill2 to check the
                         \ next column
 
- LDA #189               \ Set A to the character with both middle sixels filled
+ LDA #252               \ Set A to the character with both middle sixels filled
                         \ and the vertical bar in the first column
 
  BNE dill3
@@ -8843,7 +8853,7 @@ ENDIF
  BNE dill3              \ in the first column, so jump to dill2 to check the
                         \ next column
 
- LDA #238               \ Set A to the character with both middle sixels filled
+ LDA #254               \ Set A to the character with both middle sixels filled
                         \ and the vertical bar in the second column
 
 .dill3
@@ -14954,13 +14964,13 @@ ENDIF
  BIT showChart          \ Only display the fuel circle if bit 7 of showChart is
  BPL long1              \ set, by skipping the following if bit 7 is clear
 
- LDA #&11               \ Set sixel plotting logic to ORA (SC),Y, so the fuel
+ LDA #&05               \ Set sixel plotting logic to ORA zpg, so the fuel
  STA sixelLogic         \ circle is fully drawn
 
  JSR TT14               \ Call TT14 to draw a circle with crosshairs at the
                         \ current system's galactic coordinates
 
- LDA #&51               \ Set sixel plotting logic back to EOR (SC),Y
+ LDA #&45               \ Set sixel plotting logic back to EOR zpg
  STA sixelLogic
 
  RTS                    \ Return from the subroutine
@@ -15481,7 +15491,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- JSR StyleInventory     \ Style the Inventory screen
+\ JSR StyleInventory     \ Style the Inventory screen
 
                         \ --- End of added code ------------------------------->
 
@@ -15955,7 +15965,7 @@ ENDIF
  INC XC                 \ Move forward one character so we don't overwrite the
                         \ sixel containing the system pixel
 
- JSR SetTextYellow      \ Set mode 7 yellow text
+\ JSR SetTextYellow      \ Set mode 7 yellow text
 
  DEC XC                 \ Move back one character so we don't insert any extra
                         \ space
@@ -15970,7 +15980,7 @@ ENDIF
 
  INC XC                 \ Move forward one character to compensate for the above
 
- JSR SetGraphicsWhite   \ Set mode 7 white graphics
+\ JSR SetGraphicsWhite   \ Set mode 7 white graphics
 
                         \ --- End of added code ------------------------------->
 
@@ -16082,12 +16092,12 @@ ENDIF
 
 .RevealMessage
 
- LDA #132               \ Style the bottom row as yellow text on blue background
- STA MODE7_VRAM+(23*&28)
- LDA #157
- STA MODE7_VRAM+(23*&28)+1
- LDA #131
- STA MODE7_VRAM+(23*&28)+2
+\ LDA #132               \ Style the bottom row as yellow text on blue background
+\ STA MODE7_VRAM+(23*&28)
+\ LDA #157
+\ STA MODE7_VRAM+(23*&28)+1
+\ LDA #131
+\ STA MODE7_VRAM+(23*&28)+2
 
  LDA #LO(MODE7_VRAM+(23*&28)+MODE7_INDENT+2)   \ Point SC to on-screen message
  STA SC
@@ -16100,6 +16110,7 @@ ENDIF
 .rmes1
 
  LDA (P),Y              \ Copy the Y-th byte of the message from P(1 0) to
+ JSR ConvertAscii
  STA (SC),Y             \ SC(1 0)
 
  DEY                    \ Decrement the counter
@@ -17312,7 +17323,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- JSR StyleMarketPrices  \ Style the Market Prices screen
+\ JSR StyleMarketPrices  \ Style the Market Prices screen
 
                         \ --- End of added code ------------------------------->
 
@@ -19705,15 +19716,15 @@ ENDIF
 
 .DET1
 
- LDA #6                 \ Set A to 6 so we can update 6845 register R6 below
-
- SEI                    \ Disable interrupts so we can update the 6845
-
- STA VIA+&00            \ Set 6845 register R6 to the value in X. Register R6
- STX VIA+&01            \ is the "vertical displayed" register, which sets the
-                        \ number of rows shown on the screen
-
- CLI                    \ Re-enable interrupts
+\ LDA #6                 \ Set A to 6 so we can update 6845 register R6 below
+\
+\ SEI                    \ Disable interrupts so we can update the 6845
+\
+\ STA VIA+&00            \ Set 6845 register R6 to the value in X. Register R6
+\ STX VIA+&01            \ is the "vertical displayed" register, which sets the
+\                        \ number of rows shown on the screen
+\
+\ CLI                    \ Re-enable interrupts
 
  RTS                    \ Return from the subroutine
 
@@ -19962,7 +19973,7 @@ ENDIF
                         \ --- And replaced by: -------------------------------->
 
  TXA                    \ Set COMX = 203 + X, as 194 is the pixel x-coordinate
- ADC #203               \ of the leftmost dot possible on the compass, and X can
+ ADC #203-8             \ of the leftmost dot possible on the compass, and X can
  STA COMX               \ be -9, which would be 203 - 9 = 194. This also means
                         \ that the highest value for COMX is 203 + 9 = 212,
                         \ which is the pixel x-coordinate of the rightmost dot
@@ -19993,7 +20004,7 @@ ENDIF
                         \ --- And replaced by: -------------------------------->
 
  STX T                  \ Set COMY = 212 - X, as 211 is the pixel y-coordinate
- LDA #212               \ of the centre of the compass, the C flag is clear,
+ LDA #141+SIXELH*4      \ of the centre of the compass, the C flag is clear,
  SBC T                  \ and the y-axis needs to be flipped around (because
  STA COMY               \ when the planet or station is above us, and the
                         \ vector is therefore positive, we want to show the dot
@@ -20092,15 +20103,11 @@ ENDIF
 
  JSR CPIX2              \ Call CPIX2 to draw a single-height dash at (X1, Y1)
 
- DEC Y1                 \ Decrement Y1
+ LDA Y1                 \ Move down 4 pixels, or one sixel line
+ SEC
+ SBC #SIXELH
+ STA Y1
 
-                        \ --- Mod: Code added for Teletext Elite: ------------->
-
- DEC Y1                 \ Decrement Y1 again, so we move down 4 pixels, or one
- DEC Y1                 \ sixel line
- DEC Y1
-
-                        \ --- End of added code ------------------------------->
 
                         \ Fall through into CPIX2 to draw a second single-height
                         \ dash on the pixel row above the first one, to create a
@@ -20859,9 +20866,7 @@ ENDIF
 .ecbl1
 
  LDA #' '               \ Set A to the space character to poke into the screen
-
- STA &7FCA              \ Poke the character in A into the bottom-left corner of
-                        \ the dashboard
+ STA MODE7_VRAM + 29 + 23*40
 
  RTS                    \ Return from the subroutine
 
@@ -20906,7 +20911,8 @@ ENDIF
 
  LDA #' '               \ Set A to the space character to poke into the screen
 
- STA &7FDE              \ Poke the character in A into the bottom-left corner of
+ STA MODE7_VRAM + 29 + 22*40
+                        \ Poke the character in A into the bottom-left corner of
                         \ the dashboard
 
  RTS                    \ Return from the subroutine
@@ -21116,7 +21122,7 @@ ENDIF
  TYA                    \ If the missile colour is black, jump to spbl1 to
  BEQ msba1              \ display a space for the missile
 
- LDA #164               \ Set A to the character with the middle-left sixel
+ LDA #108               \ Set A to the character with the middle-left sixel
                         \ filled
 
  EQUB &2C               \ Skip the next instruction by turning it into
@@ -21127,7 +21133,7 @@ ENDIF
 
  LDA #' '               \ Set A to the space character to poke into the screen
 
- STA &7FC4,X            \ Poke the character in A into the X-th missile
+ STA MODE7_VRAM+24*40+4,X            \ Poke the character in A into the X-th missile
                         \ character
 
  LDX XSAV               \ Restore X so it is unchanged
@@ -23936,19 +23942,19 @@ ENDIF
  LDX #0                 \ Set the initial values for the results, X = Y = 0,
  LDY #0                 \ which we now increase or decrease appropriately
 
- CMP #&19               \ If left arrow was pressed, set X = X - 1
+ CMP #&66               \ If ',' was pressed, set X = X - 1
  BNE P%+3
  DEX
 
- CMP #&79               \ If right arrow was pressed, set X = X + 1
+ CMP #&67               \ If '.' arrow was pressed, set X = X + 1
  BNE P%+3
  INX
 
- CMP #&39               \ If up arrow was pressed, set Y = Y + 1
+ CMP #&51               \ If S was pressed, set Y = Y + 1
  BNE P%+3
  INY
 
- CMP #&29               \ If down arrow was pressed, set Y = Y - 1
+ CMP #&42               \ If X was pressed, set Y = Y - 1
  BNE P%+3
  DEY
 
@@ -27463,18 +27469,18 @@ ENDIF
                         \ These are the primary flight controls (pitch, roll,
                         \ speed and lasers):
 
- EQUB &68 + 128         \ ?         KYTB+1      Slow down
- EQUB &62 + 128         \ Space     KYTB+2      Speed up
- EQUB &66 + 128         \ <         KYTB+3      Roll left
- EQUB &67 + 128         \ >         KYTB+4      Roll right
- EQUB &42 + 128         \ X         KYTB+5      Pitch up
- EQUB &51 + 128         \ S         KYTB+6      Pitch down
- EQUB &41 + 128         \ A         KYTB+7      Fire lasers
+ EQUB &02               \ ?         KYTB+1      Slow down
+ EQUB &62               \ Space     KYTB+2      Speed up
+ EQUB &66               \ ,         KYTB+3      Roll left
+ EQUB &67               \ .         KYTB+4      Roll right
+ EQUB &42               \ X         KYTB+5      Pitch up
+ EQUB &51               \ S         KYTB+6      Pitch down
+ EQUB &41               \ A         KYTB+7      Fire lasers
 
                         \ These are the secondary flight controls:
 
  EQUB &60               \ TAB       KYTB+8      Energy bomb
- EQUB &70               \ ESCAPE    KYTB+9      Launch escape pod
+ EQUB &58               \ ]         KYTB+9      Launch escape pod
  EQUB &23               \ T         KYTB+10     Arm missile
  EQUB &35               \ U         KYTB+11     Unarm missile
  EQUB &65               \ M         KYTB+12     Fire missile
@@ -27526,98 +27532,6 @@ ENDIF
 
 \ ******************************************************************************
 \
-\       Name: CTRL
-\       Type: Subroutine
-\   Category: Keyboard
-\    Summary: Scan the keyboard to see if CTRL is currently pressed
-\
-\ ------------------------------------------------------------------------------
-\
-\ Returns:
-\
-\   X                   X = %10000001 (i.e. 129 or -127) if CTRL is being
-\                       pressed
-\
-\                       X = 1 if CTRL is not being pressed
-\
-\   A                   Contains the same as X
-\
-\ ******************************************************************************
-
-.CTRL
-
- LDX #1                 \ Set X to the internal key number for CTRL and fall
-                        \ through to DKS4 to scan the keyboard
-
-\ ******************************************************************************
-\
-\       Name: DKS4
-\       Type: Subroutine
-\   Category: Keyboard
-\    Summary: Scan the keyboard to see if a specific key is being pressed
-\  Deep dive: The key logger
-\
-\ ------------------------------------------------------------------------------
-\
-\ Arguments:
-\
-\   X                   The internal number of the key to check (see p.142 of
-\                       the Advanced User Guide for a list of internal key
-\                       numbers)
-\
-\ ------------------------------------------------------------------------------
-\
-\ Returns:
-\
-\   A                   If the key in A is being pressed, A contains the
-\                       original argument A, but with bit 7 set (i.e. A + 128).
-\                       If the key in A is not being pressed, the value in A is
-\                       unchanged
-\
-\   X                   Contains the same as A
-\
-\ ******************************************************************************
-
-.DKS4
-
- LDA #%00000011         \ Set A to %00000011, so it's ready to send to SHEILA
-                        \ once interrupts have been disabled
-
- SEI                    \ Disable interrupts so we can scan the keyboard
-                        \ without being hijacked
-
- STA VIA+&40            \ Set 6522 System VIA output register ORB (SHEILA &40)
-                        \ to %00000011 to stop auto scan of keyboard
-
- LDA #%01111111         \ Set 6522 System VIA data direction register DDRA
- STA VIA+&43            \ (SHEILA &43) to %01111111. This sets the A registers
-                        \ (IRA and ORA) so that:
-                        \
-                        \   * Bits 0-6 of ORA will be sent to the keyboard
-                        \
-                        \   * Bit 7 of IRA will be read from the keyboard
-
- STX VIA+&4F            \ Set 6522 System VIA output register ORA (SHEILA &4F)
-                        \ to X, the key we want to scan for; bits 0-6 will be
-                        \ sent to the keyboard, of which bits 0-3 determine the
-                        \ keyboard column, and bits 4-6 the keyboard row
-
- LDX VIA+&4F            \ Read 6522 System VIA output register IRA (SHEILA &4F)
-                        \ into X; bit 7 is the only bit that will have changed.
-                        \ If the key is pressed, then bit 7 will be set,
-                        \ otherwise it will be clear
-
- LDA #%00001011         \ Set 6522 System VIA output register ORB (SHEILA &40)
- STA VIA+&40            \ to %00001011 to restart auto scan of keyboard
-
- CLI                    \ Allow interrupts again
-
- TXA                    \ Transfer X into A
-
- RTS                    \ Return from the subroutine
-
-\ ******************************************************************************
-\
 \       Name: DKS2
 \       Type: Subroutine
 \   Category: Keyboard
@@ -27657,23 +27571,27 @@ ENDIF
 
 .DKS2
 
- LDA #128               \ Call OSBYTE with A = 128 to fetch the 16-bit value
- JSR OSBYTE             \ from ADC channel X, returning (Y X), i.e. the high
-                        \ byte in Y and the low byte in X
-                        \
-                        \   * Channel 1 is the x-axis: 0 = right, 65520 = left
-                        \
-                        \   * Channel 2 is the y-axis: 0 = down,  65520 = up
-
- TYA                    \ Copy Y to A, so the result is now in (A X)
-
- EOR JSTE               \ The high byte A is now EOR'd with the value in
-                        \ location JSTE, which contains &FF if both joystick
-                        \ channels are reversed and 0 otherwise (so A now
-                        \ contains the high byte but inverted, if that's what
-                        \ the current settings say)
+\ LDA #128               \ Call OSBYTE with A = 128 to fetch the 16-bit value
+\ JSR OSBYTE             \ from ADC channel X, returning (Y X), i.e. the high
+\                        \ byte in Y and the low byte in X
+\                        \
+\                        \   * Channel 1 is the x-axis: 0 = right, 65520 = left
+\                        \
+\                        \   * Channel 2 is the y-axis: 0 = down,  65520 = up
+\
+\ TYA                    \ Copy Y to A, so the result is now in (A X)
+\
+\ EOR JSTE               \ The high byte A is now EOR'd with the value in
+\                        \ location JSTE, which contains &FF if both joystick
+\                        \ channels are reversed and 0 otherwise (so A now
+\                        \ contains the high byte but inverted, if that's what
+\                        \ the current settings say)
+ LDA #0
+ TAX
 
  RTS                    \ Return from the subroutine
+
+
 
 \ ******************************************************************************
 \
@@ -32203,8 +32121,14 @@ ENDMACRO
 \ ******************************************************************************
 
 .LL83
+ ; Hack for the PET; XX13 comes in as 0, 63 or 127, but for the last case
+ ; the code asssumes the top bit is set; make it so
+ LDA XX13
+ CMP #Y+1
+ BCC P%+4
+ LDA #191
 
- LDA XX13               \ If XX13 < 128 then only one of the points is on-screen
+\ LDA XX13               \ If XX13 < 128 then only one of the points is on-screen
  BPL LL115              \ so jump down to LL115 to skip the checks of whether
                         \ both points are in the strips to the right or bottom
                         \ of the screen
@@ -34963,22 +34887,22 @@ ENDMACRO
 
                         \ The centre of the laser crosshairs is at pixel
                         \ coordinate (128, 96), which is the equivalent of sixel
-                        \ coordinate (32, 24)
+                        \ coordinate (32, 16)
                         \
                         \ We add one row to the y-coordinate to skip the title
-                        \ bar, to give (32, 27)
+                        \ bar, to give (32, 17)
 
  LDX #32                \ Draw two vertical bars for the laser sights
- LDY #27-5
+ LDY #17-5
  JSR MoveToSixel
- LDY #27-2
+ LDY #17-2
  JSR DrawToSixel
- LDY #27+5
+ LDY #17+5
  JSR MoveToSixel
- LDY #27+2
+ LDY #17+2
  JSR DrawToSixel
 
- LDY #27                \ Draw two horizontal bars for the laser sights,
+ LDY #17                \ Draw two horizontal bars for the laser sights,
  LDX #32-5              \ returning from the subroutine using a tail call
  JSR MoveToSixel
  LDX #32-2
@@ -35102,12 +35026,12 @@ ENDMACRO
                         \ If we get here then this is a space view, death screen
                         \ or chart, so we want a graphics view
 
- JSR SetMode7Graphics   \ Set all screen rows to white graphics
+\ JSR SetMode7Graphics   \ Set all screen rows to white graphics
 
  LDA QQ11               \ Show the dashboard and message row for the space view
  BNE BOL1
 
- JSR StyleMessages      \ Style the messages row
+\ JSR StyleMessages      \ Style the messages row
 
  JSR ShowDashboard      \ Display the dashboard
 
@@ -35499,7 +35423,8 @@ ENDIF
 
 .SC2
 
- ADC #123               \ Set X1 = 123 + (x_sign x_hi)
+ ; PET adjustment
+ ADC #123-4             \ Set X1 = 123 + (x_sign x_hi)
  STA X1
 
                         \ Next, we convert the z_hi coordinate of the ship into
@@ -35789,14 +35714,16 @@ ENDIF
 
                         \ --- And replaced by: -------------------------------->
 
+PET_Y_ADJUST = 13
+
  LDA SC                 \ Store the y-coordinate of the end of the stick in SC
  PHA                    \ on the stack, as we overwrite SC in the drawing
                         \ routines below
 
  LDA Y1                 \ Scale the pixel y-coordinate in Y1 into sixels and
- SCALE_SIXEL_X          \ add 9, so Y contains the sixel y-coordinate of the
- CLC                    \ dot
- ADC #9
+ SCALE_SIXEL_Y          \ add 9, so Y contains the sixel y-coordinate of the
+ sec                    \ dot
+ sbc #PET_Y_ADJUST
  TAY
 
  LDA X1                 \ Scale the pixel x-coordinate in X1 into sixels
@@ -35815,9 +35742,9 @@ ENDIF
  PLA                    \ Fetch the pixel y-coordinate of the end of the stick
                         \ fromthe stack into A
 
- SCALE_SIXEL_X          \ Scale the pixel y-coordinate in A into sixels and add
- CLC                    \ 9, so Y contains the sixel y-coordinate of the end of
- ADC #9                 \ the stick
+ SCALE_SIXEL_Y          \ Scale the pixel y-coordinate in A into sixels and add
+ sec                    \ 9, so Y contains the sixel y-coordinate of the end of
+ sbc #PET_Y_ADJUST      \ the stick
  TAY
 
  CPY YSAV2              \ If the y-coordinate of the dot equals the y-coordinate
@@ -35904,6 +35831,8 @@ ENDIF
  INCLUDE "1-source-files/main-sources/elite-teletext-text.asm"
 
  INCLUDE "1-source-files/main-sources/elite-teletext-flight.asm"
+
+ INCLUDE "1-source-files/main-sources/elite-pet-keyboard.asm"
 
                         \ --- End of added code ------------------------------->
 

@@ -30,10 +30,19 @@
 .dashboard
 
 \INCBIN "1-source-files/images/P.DIALS_2LINES.bin"  \ Side lines, ship as V
- INCBIN "1-source-files/images/P.DIALS_DOT.bin"     \ Side lines, ship as dot
+\INCBIN "1-source-files/images/P.DIALS_DOT.bin"     \ Side lines, ship as dot
 \INCBIN "1-source-files/images/P.DIALS_3LINES.bin"  \ Side and centre lines
 \INCBIN "1-source-files/images/P.DIALS_ELLIPSE.bin" \ Just the ellipse
 \INCBIN "1-source-files/images/P.DIALS_FULL.bin"    \ Full set of lines
+
+EQUB  98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98
+EQUB  97, 70, 83, 96, 96, 96, 96, 96, 96, 97, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 97, 96, 96,225, 96, 96, 96, 96, 96, 96, 83, 80,225
+EQUB  97, 65, 83, 96, 96, 96, 96, 96, 96, 97, 96, 96, 96,108,124,124,124,124,124,124,124,124,124,124,108, 96, 96, 97, 96, 96,225, 96, 96, 96, 96, 96, 96, 82, 76,225
+EQUB  97, 70, 85, 96, 96, 96, 96, 96, 96, 97, 96,108,124, 96, 96,126, 96, 96, 96, 96, 96, 96, 96,126, 96,108, 96, 97, 96, 96,225, 96, 96, 96, 96, 96, 96, 68, 67,225
+EQUB  97, 67, 84, 96, 96, 96, 96, 96, 96, 97, 96,126, 96, 96,126, 96, 96, 96, 96,126, 96, 96, 96, 96,126, 96,124,226,226,226,251, 96, 96, 96, 96, 96, 96, 49, 96,225
+EQUB  97, 76, 84, 96, 96, 96, 96, 96, 96, 97, 96,124,108,127, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96,108,127,124, 96, 96, 96,225, 96, 96, 96, 96, 96, 96, 50, 96,225
+EQUB  97, 65, 76, 96, 96, 96, 96, 96, 96, 97, 96, 96, 96, 96,124,124,124,108,108,108,108,124,124,124, 96, 96, 96, 96, 96, 96,225, 96, 96, 96, 96, 96, 96, 51, 96,225
+EQUB 252, 77, 73, 96, 96, 96, 96, 96, 96,252, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96,254, 96, 96, 96, 96, 96, 96, 52, 96,254
 
 \ ******************************************************************************
 \
@@ -51,14 +60,14 @@
  LDA #HI(dashboard)
  STA P+1
 
- LDA #LO(MODE7_VRAM+(18*&28))   \ Set R(1 0) to the dashboard's on-screen
+ LDA #LO(MODE7_VRAM+(17*&28))   \ Set R(1 0) to the dashboard's on-screen
  STA R                          \ address from row 18 onwards
- LDA #HI(MODE7_VRAM+(18*&28))
+ LDA #HI(MODE7_VRAM+(17*&28))
  STA R+1
 
-                        \ The dashboard image is 256 + 24 bytes long, so we can
+                        \ The dashboard image is 256 + 64 bytes long, so we can
                         \ copy it into memory using two loops, the first for
-                        \ 256 bytes and the second for 24 bytes
+                        \ 256 bytes and the second for 64 bytes
 
  LDY #0                 \ Set a byte counter in Y to work through the first page
                         \ (256 bytes) of the dashboard image as we copy it into
@@ -76,7 +85,7 @@
  INC P+1                \ Increment P(1 0) and R(1 0) to point to the next page
  INC R+1                \ in memory
 
- LDY #24                \ Set a byte counter in Y to work through the next 24
+ LDY #64                \ Set a byte counter in Y to work through the next 64
                         \ bytes of the dashboard image as we copy it into screen
                         \ memory
 
@@ -111,7 +120,7 @@
  BEQ dmis1              \ a target, so jump to dmis1 to set the missile colour
                         \ to green or red
 
- LDA #147               \ The missile is looking for a target, so set the
+ LDA #'T'               \ The missile is looking for a target, so set the
                         \ colour in A to yellow
 
  BNE dmis3              \ Jump to dmis3 to set the missile colour (this BNE is
@@ -122,7 +131,7 @@
  LDA MSTG               \ If MSTG is 1-12, then we have target lock, so jump to
  BPL dmis2              \ dmis2 to set the missile colour to red
 
- LDA #146               \ The missile does not have target lock, so set the
+ LDA #' '               \ The missile does not have target lock, so set the
                         \ colour in A to green
 
  BNE dmis3              \ Jump to dmis3 to set the missile colour (this BNE is
@@ -130,12 +139,12 @@
 
 .dmis2
 
- LDA #145               \ The missile has target lock, so set the colour in A
+ LDA #'L'               \ The missile has target lock, so set the colour in A
                         \ to red
 
 .dmis3
 
- STA &7FC3              \ Set the missiles to the colour in A by poking the
+ STA MODE7_VRAM+24*40+3 \ Set the missiles to the colour in A by poking the
                         \ control character in A into the space before the
                         \ missile sixels
 
@@ -153,46 +162,46 @@
 
 .StyleSystemData
 
- LDA &7CA5              \ If the distance is showing, jump to syst1 to style the
- CMP #'D'               \ screen, as everything moves down one line
- BEQ syst1
-
- LDA #130               \ Set to the "green text" control code
-
- STA &7CD5              \ Economy
-
- STA &7D28              \ Government
-
- STA &7D78              \ Tech level
-
- STA &7DC8              \ Population
-
- STA &7E0C              \ Species
-
- STA &7E70              \ Gross producticity
-
- STA &7EBC              \ Average radius
-
- RTS                    \ Return from the subroutine
-
-.syst1
-
- LDA #130               \ Set to the "green text" control code
-
- STA &7CAE              \ Distance
-
- STA &7CD5+40           \ Economy
-
- STA &7D28+40           \ Government
-
- STA &7D78+40           \ Tech level
-
- STA &7DC8+40           \ Population
-
- STA &7E0C+40           \ Species
-
- STA &7E70+40           \ Gross producticity
-
- STA &7EBC+40           \ Average radius
+\ LDA &7CA5              \ If the distance is showing, jump to syst1 to style the
+\ CMP #'D'               \ screen, as everything moves down one line
+\ BEQ syst1
+\
+\ LDA #130               \ Set to the "green text" control code
+\
+\ STA &7CD5              \ Economy
+\
+\ STA &7D28              \ Government
+\
+\ STA &7D78              \ Tech level
+\
+\ STA &7DC8              \ Population
+\
+\ STA &7E0C              \ Species
+\
+\ STA &7E70              \ Gross producticity
+\
+\ STA &7EBC              \ Average radius
+\
+\ RTS                    \ Return from the subroutine
+\
+\.syst1
+\
+\ LDA #130               \ Set to the "green text" control code
+\
+\ STA &7CAE              \ Distance
+\
+\ STA &7CD5+40           \ Economy
+\
+\ STA &7D28+40           \ Government
+\
+\ STA &7D78+40           \ Tech level
+\
+\ STA &7DC8+40           \ Population
+\
+\ STA &7E0C+40           \ Species
+\
+\ STA &7E70+40           \ Gross producticity
+\
+\ STA &7EBC+40           \ Average radius
 
  RTS                    \ Return from the subroutine

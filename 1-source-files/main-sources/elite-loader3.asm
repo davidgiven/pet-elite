@@ -113,13 +113,17 @@
                         \ such as the video ULA, 6845 CRTC and 6522 VIAs (also
                         \ known as SHEILA)
 
- OSWRCH = &FFEE         \ The address for the OSWRCH routine
+\ OSWRCH = &FFEE         \ The address for the OSWRCH routine
+ OSWRCH = &700c         \ The address for the OSWRCH routine
 
- OSBYTE = &FFF4         \ The address for the OSBYTE routine
+\ OSBYTE = &FFF4         \ The address for the OSBYTE routine
+ OSBYTE = &7009         \ The address for the OSBYTE routine
 
- OSWORD = &FFF1         \ The address for the OSWORD routine
+\ OSWORD = &FFF1         \ The address for the OSWORD routine
+ OSWORD = &7003         \ The address for the OSWORD routine
 
- OSCLI = &FFF7          \ The address for the OSCLI vector
+\ OSCLI = &FFF7          \ The address for the OSCLI vector
+ OSCLI = &7000
 
 \ ******************************************************************************
 \
@@ -190,6 +194,9 @@ ENDIF
 
  SKIP 2                 \ Temporary storage, used in the mode 7 screen routines
 
+.K2
+
+ SKIP 14
                         \ --- End of added code ------------------------------->
 
  ORG &008B
@@ -312,35 +319,35 @@ ENDIF
 
                         \ --- And replaced by: -------------------------------->
 
- EQUB 22, 7             \ Switch to screen mode 7
-
-                        \ --- End of replacement ------------------------------>
-
- EQUB 23, 0, 10, 32     \ Set 6845 register R10 = %00100000 = 32
- EQUB 0, 0, 0           \
- EQUB 0, 0, 0           \ This is the "cursor start" register, and bits 5 and 6
-                        \ define the "cursor display mode", as follows:
-                        \
-                        \   * %00 = steady, non-blinking cursor
-                        \
-                        \   * %01 = do not display a cursor
-                        \
-                        \   * %10 = fast blinking cursor (blink at 1/16 of the
-                        \           field rate)
-                        \
-                        \   * %11 = slow blinking cursor (blink at 1/32 of the
-                        \           field rate)
-                        \
-                        \ We can therefore turn off the cursor completely by
-                        \ setting cursor display mode %01, with bit 6 of R10
-                        \ clear and bit 5 of R10 set
-
-                        \ --- Mod: Code added for Teletext Elite: ------------->
-
- SKIP 55                \ Pad the table out to the same length as in the
-                        \ original
-
-                        \ --- End of added code ------------------------------->
+\ EQUB 22, 7             \ Switch to screen mode 7
+\
+\                        \ --- End of replacement ------------------------------>
+\
+\ EQUB 23, 0, 10, 32     \ Set 6845 register R10 = %00100000 = 32
+\ EQUB 0, 0, 0           \
+\ EQUB 0, 0, 0           \ This is the "cursor start" register, and bits 5 and 6
+\                        \ define the "cursor display mode", as follows:
+\                        \
+\                        \   * %00 = steady, non-blinking cursor
+\                        \
+\                        \   * %01 = do not display a cursor
+\                        \
+\                        \   * %10 = fast blinking cursor (blink at 1/16 of the
+\                        \           field rate)
+\                        \
+\                        \   * %11 = slow blinking cursor (blink at 1/32 of the
+\                        \           field rate)
+\                        \
+\                        \ We can therefore turn off the cursor completely by
+\                        \ setting cursor display mode %01, with bit 6 of R10
+\                        \ clear and bit 5 of R10 set
+\
+\                        \ --- Mod: Code added for Teletext Elite: ------------->
+\
+\ SKIP 55                \ Pad the table out to the same length as in the
+\                        \ original
+\
+\                        \ --- End of added code ------------------------------->
 
 \ ******************************************************************************
 \
@@ -369,12 +376,12 @@ ENDIF
 \
 \ ******************************************************************************
 
-.E%
-
- EQUB 1, 1, 0, 111, -8, 4, 1, 8, 8, -2, 0, -1, 126, 44
- EQUB 2, 1, 14, -18, -1, 44, 32, 50, 6, 1, 0, -2, 120, 126
- EQUB 3, 1, 1, -1, -3, 17, 32, 128, 1, 0, 0, -1, 1, 1
- EQUB 4, 1, 4, -8, 44, 4, 6, 8, 22, 0, 0, -127, 126, 0
+\.E%
+\
+\ EQUB 1, 1, 0, 111, -8, 4, 1, 8, 8, -2, 0, -1, 126, 44
+\ EQUB 2, 1, 14, -18, -1, 44, 32, 50, 6, 1, 0, -2, 120, 126
+\ EQUB 3, 1, 1, -1, -3, 17, 32, 128, 1, 0, 0, -1, 1, 1
+\ EQUB 4, 1, 4, -8, 44, 4, 6, 8, 22, 0, 0, -127, 126, 0
 
 \ ******************************************************************************
 \
@@ -396,11 +403,11 @@ ENDIF
 
 MACRO FNE I%
 
- LDX #LO(E%+I%*14)      \ Set (Y X) to point to the I%-th set of envelope data
- LDY #HI(E%+I%*14)      \ in E%
-
- LDA #8                 \ Call OSWORD with A = 8 to set up sound envelope I%
- JSR OSWORD
+\ LDX #LO(E%+I%*14)      \ Set (Y X) to point to the I%-th set of envelope data
+\ LDY #HI(E%+I%*14)      \ in E%
+\
+\ LDA #8                 \ Call OSWORD with A = 8 to set up sound envelope I%
+\ JSR OSWORD
 
 ENDMACRO
 
@@ -416,40 +423,40 @@ ENDMACRO
 
 .ENTRY
 
-IF _STH_DISC OR _IB_DISC
-
- JSR PROT1              \ Call PROT1 to calculate checksums into CHKSM
-
-ELIF _SRAM_DISC
-
- JSR PROT4              \ Fetch the address of the keyboard translation table
-                        \ before calling PROT1 to calculate checksums into CHKSM
-
-ENDIF
-
- LDA #144               \ Call OSBYTE with A = 144, X = 255 and Y = 0 to move
- LDX #255               \ the screen down one line and turn screen interlace on
- JSR OSB
-
- LDA #LO(B%)            \ Set the low byte of ZP(1 0) to point to the VDU code
- STA ZP                 \ table at B%
-
- LDA #HI(B%)            \ Set the high byte of ZP(1 0) to point to the VDU code
- STA ZP+1               \ table at B%
-
- LDY #0                 \ We are now going to send the N% VDU bytes in the table
-                        \ at B% to OSWRCH to set up the special mode 4 screen
-                        \ that forms the basis for the split-screen mode
-
-.loop1
-
- LDA (ZP),Y             \ Pass the Y-th byte of the B% table to OSWRCH
- JSR OSWRCH
-
- INY                    \ Increment the loop counter
-
- CPY #N%                \ Loop back for the next byte until we have done them
- BNE loop1              \ all (the number of bytes was set in N% above)
+\IF _STH_DISC OR _IB_DISC
+\
+\ JSR PROT1              \ Call PROT1 to calculate checksums into CHKSM
+\
+\ELIF _SRAM_DISC
+\
+\ JSR PROT4              \ Fetch the address of the keyboard translation table
+\                        \ before calling PROT1 to calculate checksums into CHKSM
+\
+\ENDIF
+\
+\ LDA #144               \ Call OSBYTE with A = 144, X = 255 and Y = 0 to move
+\ LDX #255               \ the screen down one line and turn screen interlace on
+\ JSR OSB
+\
+\ LDA #LO(B%)            \ Set the low byte of ZP(1 0) to point to the VDU code
+\ STA ZP                 \ table at B%
+\
+\ LDA #HI(B%)            \ Set the high byte of ZP(1 0) to point to the VDU code
+\ STA ZP+1               \ table at B%
+\
+\ LDY #0                 \ We are now going to send the N% VDU bytes in the table
+\                        \ at B% to OSWRCH to set up the special mode 4 screen
+\                        \ that forms the basis for the split-screen mode
+\
+\.loop1
+\
+\ LDA (ZP),Y             \ Pass the Y-th byte of the B% table to OSWRCH
+\ JSR OSWRCH
+\
+\ INY                    \ Increment the loop counter
+\
+\ CPY #N%                \ Loop back for the next byte until we have done them
+\ BNE loop1              \ all (the number of bytes was set in N% above)
 
                         \ --- Mod: Code removed for Teletext Elite: ----------->
 
@@ -461,88 +468,88 @@ ENDIF
 
                         \ --- End of replacement ------------------------------>
 
- LDA #16                \ Call OSBYTE with A = 16 and X = 3 to set the ADC to
- LDX #3                 \ sample 3 channels from the joystick/Bitstik
- JSR OSBYTE
+\ LDA #16                \ Call OSBYTE with A = 16 and X = 3 to set the ADC to
+\ LDX #3                 \ sample 3 channels from the joystick/Bitstik
+\ JSR OSBYTE
+\
+\ LDA #&60               \ Store an RTS instruction in location &0232
+\ STA &0232
+\
+\ LDA #&02               \ Point the NETV vector to &0232, which we just filled
+\ STA NETV+1             \ with an RTS
+\ LDA #&32
+\ STA NETV
+\
+\ LDA #190               \ Call OSBYTE with A = 190, X = 8 and Y = 0 to set the
+\ LDX #8                 \ ADC conversion type to 8 bits, for the joystick
+\ JSR OSB
 
- LDA #&60               \ Store an RTS instruction in location &0232
- STA &0232
+\IF _STH_DISC OR _IB_DISC
 
- LDA #&02               \ Point the NETV vector to &0232, which we just filled
- STA NETV+1             \ with an RTS
- LDA #&32
- STA NETV
+\ LDA #200               \ Call OSBYTE with A = 200, X = 0 and Y = 0 to enable
+\ LDX #0                 \ the ESCAPE key and disable memory clearing if the
+\ JSR OSB                \ BREAK key is pressed
 
- LDA #190               \ Call OSBYTE with A = 190, X = 8 and Y = 0 to set the
- LDX #8                 \ ADC conversion type to 8 bits, for the joystick
- JSR OSB
+\ELIF _SRAM_DISC
+\
+\ LDA #219               \ Store 219 in location &9F. This gets checked by the
+\ STA &9F                \ TITLE routine in the main docked code as part of the
+\                        \ copy protection (the game hangs if it doesn't match)
+\                        \
+\                        \ This is normally done in the OSBmod routine, but the
+\                        \ sideways RAM variant doesn't call OSBmod as that part
+\                        \ of the copy protection is disabled, so we set the
+\                        \ value of location &BF here instead
+\
+\ NOP                    \ Pad out the code so it takes up the same amount of
+\ NOP                    \ space as in the original version
+\ NOP
+\
+\ENDIF
 
-IF _STH_DISC OR _IB_DISC
+\ LDA #13                \ Call OSBYTE with A = 13, X = 0 and Y = 0 to disable
+\ LDX #0                 \ the "output buffer empty" event
+\ JSR OSB
+\
+\ LDA #225               \ Call OSBYTE with A = 225, X = 128 and Y = 0 to set
+\ LDX #128               \ the function keys to return ASCII codes for SHIFT-fn
+\ JSR OSB                \ keys (i.e. add 128)
 
- LDA #200               \ Call OSBYTE with A = 200, X = 0 and Y = 0 to enable
- LDX #0                 \ the ESCAPE key and disable memory clearing if the
- JSR OSB                \ BREAK key is pressed
-
-ELIF _SRAM_DISC
-
- LDA #219               \ Store 219 in location &9F. This gets checked by the
- STA &9F                \ TITLE routine in the main docked code as part of the
-                        \ copy protection (the game hangs if it doesn't match)
-                        \
-                        \ This is normally done in the OSBmod routine, but the
-                        \ sideways RAM variant doesn't call OSBmod as that part
-                        \ of the copy protection is disabled, so we set the
-                        \ value of location &BF here instead
-
- NOP                    \ Pad out the code so it takes up the same amount of
- NOP                    \ space as in the original version
- NOP
-
-ENDIF
-
- LDA #13                \ Call OSBYTE with A = 13, X = 0 and Y = 0 to disable
- LDX #0                 \ the "output buffer empty" event
- JSR OSB
-
- LDA #225               \ Call OSBYTE with A = 225, X = 128 and Y = 0 to set
- LDX #128               \ the function keys to return ASCII codes for SHIFT-fn
- JSR OSB                \ keys (i.e. add 128)
-
- LDA #12                \ Set A = 12 and X = 0 to pretend that this is an
- LDX #0                 \ innocent call to OSBYTE to reset the keyboard delay
+\ LDA #12                \ Set A = 12 and X = 0 to pretend that this is an
+\ LDX #0                 \ innocent call to OSBYTE to reset the keyboard delay
                         \ and auto-repeat rate to the default, when in reality
                         \ the OSB address in the next instruction gets modified
                         \ to point to OSBmod
 
-.OSBjsr
+\.OSBjsr
 
-IF _STH_DISC OR _IB_DISC
+\IF _STH_DISC OR _IB_DISC
+\
+\JSR OSB                \ This JSR gets modified by code inserted into PLL1 so
+\                       \ that it points to OSBmod instead of OSB, so this
+\                       \ actually calls OSBmod to calculate some checksums
+\
+\ELIF _SRAM_DISC
+\
+\ NOP                    \ The sideways RAM variant has this part of the copy
+\ NOP                    \ protection disabled, so pad out the code so it takes
+\ NOP                    \ up the same amount of space as in the original version
+\
+\ENDIF
 
- JSR OSB                \ This JSR gets modified by code inserted into PLL1 so
-                        \ that it points to OSBmod instead of OSB, so this
-                        \ actually calls OSBmod to calculate some checksums
+\ LDA #13                \ Call OSBYTE with A = 13, X = 2 and Y = 0 to disable
+\ LDX #2                 \ the "character entering buffer" event
+\ JSR OSB
+\
+\ LDA #4                 \ Call OSBYTE with A = 4, X = 1 and Y = 0 to disable
+\ LDX #1                 \ cursor editing, so the cursor keys return ASCII values
+\ JSR OSB                \ and can therefore be used in-game
+\
+\ LDA #9                 \ Call OSBYTE with A = 9, X = 0 and Y = 0 to disable
+\ LDX #0                 \ flashing colours
+\ JSR OSB
 
-ELIF _SRAM_DISC
-
- NOP                    \ The sideways RAM variant has this part of the copy
- NOP                    \ protection disabled, so pad out the code so it takes
- NOP                    \ up the same amount of space as in the original version
-
-ENDIF
-
- LDA #13                \ Call OSBYTE with A = 13, X = 2 and Y = 0 to disable
- LDX #2                 \ the "character entering buffer" event
- JSR OSB
-
- LDA #4                 \ Call OSBYTE with A = 4, X = 1 and Y = 0 to disable
- LDX #1                 \ cursor editing, so the cursor keys return ASCII values
- JSR OSB                \ and can therefore be used in-game
-
- LDA #9                 \ Call OSBYTE with A = 9, X = 0 and Y = 0 to disable
- LDX #0                 \ flashing colours
- JSR OSB
-
- JSR PROT3              \ Call PROT3 to do more checks on the CHKSM checksum
+\ JSR PROT3              \ Call PROT3 to do more checks on the CHKSM checksum
 
  LDA #&00               \ Set the following:
  STA ZP                 \
@@ -575,22 +582,35 @@ ENDIF
 
  LDA #&00               \ Set the following:
  STA ZP                 \
- LDA #&7B               \   ZP(1 0) = &7B00
+ LDA #&7F               \   ZP(1 0) = &7F00
  STA ZP+1               \   P(1 0) = SHIP_MISSILE
  LDA #LO(SHIP_MISSILE)  \   X = 1
  STA P
  LDA #HI(SHIP_MISSILE)
  STA P+1
 
- NOP                    \ Pad the code out to the same length as in the original
- NOP
+\ NOP                    \ Pad the code out to the same length as in the original
+\ NOP
 
  JSR MVPG               \ Call MVPG to move and decrypt a page of memory from
-                        \ SHIP_MISSILE to &7B00-&7BFF
+                        \ SHIP_MISSILE to &7F00-&7FFF
 
                         \ --- End of replacement ------------------------------>
 
- SEI                    \ Disable interrupts while we set up our interrupt
+\ PET keymap relocation.
+
+    lda #lo(keymap_start-&80)
+    sta P+0
+    lda #hi(keymap_start-&80)
+    sta P+1
+    lda #lo(petToAsciiLookup-&80)
+    sta ZP+0
+    lda #hi(petToAsciiLookup-&80)
+    sta ZP+1
+    ldx #3
+    jsr MVBL
+
+\ SEI                    \ Disable interrupts while we set up our interrupt
                         \ handler to support the split-screen mode
 
  LDA VIA+&44            \ Read the 6522 System VIA T1C-L timer 1 low-order
@@ -622,7 +642,9 @@ ENDIF
  STA VIA+&45            \ (SHEILA &45) to VSCAN (57) to start the T1 counter
                         \ counting down from 14622 at a rate of 1 MHz
 
- CLI                    \ Re-enable interrupts
+\ CLI                    \ Re-enable interrupts
+ NOP \ padding
+ NOP
 
  LDA #&00               \ Set the following:
  STA ZP                 \
@@ -743,15 +765,15 @@ ENDIF
 
  LDA (P),Y              \ Fetch the Y-th byte of the P(1 0) memory block
 
-IF _STH_DISC OR _IB_DISC
-
- EOR #&18               \ Decrypt it by EOR'ing with &18
-
-ELIF _SRAM_DISC
-
- EOR CHKSM              \ Decrypt it by EOR'ing with the checksum value
-
-ENDIF
+\IF _STH_DISC OR _IB_DISC
+\
+\ EOR #&18               \ Decrypt it by EOR'ing with &18
+\
+\ELIF _SRAM_DISC
+\
+\ EOR CHKSM              \ Decrypt it by EOR'ing with the checksum value
+\
+\ENDIF
 
  STA (ZP),Y             \ Store the decrypted result in the Y-th byte of the
                         \ ZP(1 0) memory block
@@ -1015,10 +1037,10 @@ ENDIF
 
 .p1b
 
- JMP PROT2              \ Jump to PROT2 for more checksums, returning from the
+\ JMP PROT2              \ Jump to PROT2 for more checksums, returning from the
                         \ subroutine using a tail call
 
- EQUB &AC               \ This byte appears to be unused
+ \EQUB &AC               \ This byte appears to be unused
 
 \ ******************************************************************************
 \
@@ -1052,10 +1074,10 @@ ENDIF
  LDA P                  \             = r1^2
  STA ZP
 
- LDA #LO(OSBmod)        \ As part of the copy protection, the JSR OSB
- STA OSBjsr+1           \ instruction at OSBjsr gets modified to point to OSBmod
-                        \ instead of OSB, and this is where we modify the low
-                        \ byte of the destination address
+\ LDA #LO(OSBmod)        \ As part of the copy protection, the JSR OSB
+\ STA OSBjsr+1           \ instruction at OSBjsr gets modified to point to OSBmod
+\                        \ instead of OSB, and this is where we modify the low
+\                        \ byte of the destination address
 
  JSR DORND              \ Set A and X to random numbers, say A = r2
 
@@ -1172,55 +1194,55 @@ ENDIF
 
 .PLL2
 
- JSR DORND              \ Set A and X to random numbers, say A = r3
-
- TAX                    \ Set X = A
-                        \       = r3
-
- JSR SQUA2              \ Set (A P) = A * A
-                        \           = r3^2
-
- STA ZP+1               \ Set ZP+1 = A
-                        \          = r3^2 / 256
-
- JSR DORND              \ Set A and X to random numbers, say A = r4
-
- STA YY                 \ Set YY = r4
-
- JSR SQUA2              \ Set (A P) = A * A
-                        \           = r4^2
-
- ADC ZP+1               \ Set A = A + r3^2 / 256
-                        \       = r4^2 / 256 + r3^2 / 256
-                        \       = (r3^2 + r4^2) / 256
-
- CMP #&11               \ If A < 17, jump down to PLC2 to skip to the next pixel
- BCC PLC2
-
- LDA YY                 \ Set A = r4
-
- JSR PIX                \ Draw a pixel at screen coordinate (X, -A), i.e. at
-                        \ (r3, -r4), where (r3^2 + r4^2) / 256 >= 17
-                        \
-                        \ Negating a random number from 0 to 255 still gives a
-                        \ random number from 0 to 255, so this is the same as
-                        \ plotting at (x, y) where:
-                        \
-                        \   x = random number from 0 to 255
-                        \   y = random number from 0 to 255
-                        \   (x^2 + y^2) div 256 >= 17
-                        \
-                        \ which is what we want
-
-.PLC2
-
- DEC CNT2               \ Decrement the counter in CNT2 (the low byte)
-
- BNE PLL2               \ Loop back to PLL2 until CNT2 = 0
-
- DEC CNT2+1             \ Decrement the counter in CNT2+1 (the high byte)
-
- BNE PLL2               \ Loop back to PLL2 until CNT2+1 = 0
+\ JSR DORND              \ Set A and X to random numbers, say A = r3
+\
+\ TAX                    \ Set X = A
+\                        \       = r3
+\
+\ JSR SQUA2              \ Set (A P) = A * A
+\                        \           = r3^2
+\
+\ STA ZP+1               \ Set ZP+1 = A
+\                        \          = r3^2 / 256
+\
+\ JSR DORND              \ Set A and X to random numbers, say A = r4
+\
+\ STA YY                 \ Set YY = r4
+\
+\ JSR SQUA2              \ Set (A P) = A * A
+\                        \           = r4^2
+\
+\ ADC ZP+1               \ Set A = A + r3^2 / 256
+\                        \       = r4^2 / 256 + r3^2 / 256
+\                        \       = (r3^2 + r4^2) / 256
+\
+\ CMP #&11               \ If A < 17, jump down to PLC2 to skip to the next pixel
+\ BCC PLC2
+\
+\ LDA YY                 \ Set A = r4
+\
+\ JSR PIX                \ Draw a pixel at screen coordinate (X, -A), i.e. at
+\                        \ (r3, -r4), where (r3^2 + r4^2) / 256 >= 17
+\                        \
+\                        \ Negating a random number from 0 to 255 still gives a
+\                        \ random number from 0 to 255, so this is the same as
+\                        \ plotting at (x, y) where:
+\                        \
+\                        \   x = random number from 0 to 255
+\                        \   y = random number from 0 to 255
+\                        \   (x^2 + y^2) div 256 >= 17
+\                        \
+\                        \ which is what we want
+\
+\.PLC2
+\
+\ DEC CNT2               \ Decrement the counter in CNT2 (the low byte)
+\
+\ BNE PLL2               \ Loop back to PLL2 until CNT2 = 0
+\
+\ DEC CNT2+1             \ Decrement the counter in CNT2+1 (the high byte)
+\
+\ BNE PLL2               \ Loop back to PLL2 until CNT2+1 = 0
 
 \ ******************************************************************************
 \
@@ -1248,10 +1270,10 @@ ENDIF
  STA ZP+1               \ Set ZP+1 = A
                         \          = r5^2 / 256
 
- LDA #HI(OSBmod)        \ As part of the copy protection, the JSR OSB
- STA OSBjsr+2           \ instruction at OSBjsr gets modified to point to OSBmod
-                        \ instead of OSB, and this is where we modify the high
-                        \ byte of the destination address
+\ LDA #HI(OSBmod)        \ As part of the copy protection, the JSR OSB
+\ STA OSBjsr+2           \ instruction at OSBjsr gets modified to point to OSBmod
+\                        \ instead of OSB, and this is where we modify the high
+\                        \ byte of the destination address
 
  JSR DORND              \ Set A and X to random numbers, say A = r6
 
@@ -1606,6 +1628,9 @@ ENDIF
 
  SCALE_SIXEL_X          \ Scale the pixel x-coordinate in A into sixels
 
+ clc
+ adc #11
+
  TAX                    \ Copy the sixel y-coordinate to X
 
  JSR PlotSixelClipped   \ Plot the sixel
@@ -1618,7 +1643,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- ORG &1CC7              \ Pad out the routine to its original length so the rest
+\ ORG &1CC7              \ Pad out the routine to its original length so the rest
                         \ of the code stays in the same place
 
                         \ --- End of added code ------------------------------->
@@ -1657,24 +1682,24 @@ ENDIF
 \
 \ ******************************************************************************
 
-.PROT2
-
- LDA RAND+2             \ Fetch the checksum we calculated in PROT1
-
- EOR CHKSM              \ Set A = A EOR CHKSM
-
- ASL A                  \ Shift A left, moving bit 7 into the C flag and
-                        \ clearing bit 0
-
- CMP #147               \ If A >= 147, set the C flag, otherwise clear it
-
- ROR A                  \ Shift A right, moving the C flag into bit 7 and
-                        \ clearing the C flag
-
- STA CHKSM              \ Store the updated A in CHKSM
-
- BCC out                \ Return from the subroutine (as we cleared the C flag
-                        \ above and out contains an RTS)
+\.PROT2
+\
+\ LDA RAND+2             \ Fetch the checksum we calculated in PROT1
+\
+\ EOR CHKSM              \ Set A = A EOR CHKSM
+\
+\ ASL A                  \ Shift A left, moving bit 7 into the C flag and
+\                        \ clearing bit 0
+\
+\ CMP #147               \ If A >= 147, set the C flag, otherwise clear it
+\
+\ ROR A                  \ Shift A right, moving the C flag into bit 7 and
+\                        \ clearing the C flag
+\
+\ STA CHKSM              \ Store the updated A in CHKSM
+\
+\ BCC out                \ Return from the subroutine (as we cleared the C flag
+\                        \ above and out contains an RTS)
 
 \ ******************************************************************************
 \
@@ -1692,7 +1717,7 @@ ENDIF
 
 .CNT
 
- EQUW &0300             \ The number of iterations of the PLL1 loop (768)
+ EQUW &0200             \ The number of iterations of the PLL1 loop (768)
 
 \ ******************************************************************************
 \
@@ -1728,7 +1753,7 @@ ENDIF
 
 .CNT3
 
- EQUW &0333             \ The number of iterations of the PLL3 loop (819)
+ EQUW &0233             \ The number of iterations of the PLL3 loop (819)
 
 \ ******************************************************************************
 \
@@ -1739,17 +1764,17 @@ ENDIF
 \
 \ ******************************************************************************
 
-.PROT3
-
- LDA CHKSM              \ Update the checksum
- AND CHKSM+1
- ORA #&0C
- ASL A
- STA CHKSM
-
- RTS                    \ Return from the subroutine
-
- JMP P%                 \ This would hang the computer, but we never get here as
+\.PROT3
+\
+\ LDA CHKSM              \ Update the checksum
+\ AND CHKSM+1
+\ ORA #&0C
+\ ASL A
+\ STA CHKSM
+\
+\ RTS                    \ Return from the subroutine
+\
+\ JMP P%                 \ This would hang the computer, but we never get here as
                         \ the checksum code has been disabled
 
 \ ******************************************************************************
@@ -1854,7 +1879,7 @@ ENDIF
  JMP OSBYTE             \ using a tail call (so we can call OSB to call OSBYTE
                         \ for when we know we want Y set to 0)
 
- EQUB &0E               \ This byte appears to be unused
+\ EQUB &0E               \ This byte appears to be unused
 
 \ ******************************************************************************
 \
@@ -1882,7 +1907,7 @@ ENDIF
 
  LDA (P),Y              \ Fetch the Y-th byte of the P(1 0) memory block
 
- EOR #&A5               \ Decrypt it by EOR'ing with &A5
+\ EOR #&A5               \ Decrypt it by EOR'ing with &A5
 
  STA (ZP),Y             \ Store the result in the Y-th byte of the ZP(1 0)
                         \ memory block
@@ -1894,7 +1919,7 @@ ENDIF
 
  RTS                    \ Return from the subroutine
 
- EQUB &0E               \ This byte appears to be unused
+\ EQUB &0E               \ This byte appears to be unused
 
 \ ******************************************************************************
 \
@@ -2006,45 +2031,45 @@ ENDIF
 \
 \ ******************************************************************************
 
-.OSBmod
-
- SEC                    \ Set the C flag so the checksum we calculate in A
-                        \ starts with an initial value of 16 (15 plus carry)
-
- LDY #&00               \ Set ZP(1 0) = &0F00
- STY ZP                 \
- LDA #&0F               \ and at the same time set a byte counter in Y and set
- STA ZP+1               \ the initial value of the checksum to 16 (15 plus
-                        \ carry)
-
-.osb1
-
- ADC (ZP),Y             \ Set A = A + the Y-th byte of ZP(1 0)
-
- INY                    \ Increment the byte pointer
-
- BNE osb1               \ Loop back to add the next byte until we have added the
-                        \ whole page
-
-IF _STH_DISC OR _IB_DISC
-
- CMP #&CF               \ The checksum test has been disabled
- NOP
- NOP
-
-ELIF _SRAM_DISC
-
- CMP #&CF               \ The sideways RAM variant never calls OSBmod, so it
- BNE OSBmod             \ still contains the original checksum test that hasn't
-                        \ been disabled
-
-ENDIF
-
- LDA #219               \ Store 219 in location &9F. This gets checked by the
- STA &9F                \ TITLE routine in the main docked code as part of the
-                        \ copy protection (the game hangs if it doesn't match)
-
- RTS                    \ Return from the subroutine
+\.OSBmod
+\
+\ SEC                    \ Set the C flag so the checksum we calculate in A
+\                        \ starts with an initial value of 16 (15 plus carry)
+\
+\ LDY #&00               \ Set ZP(1 0) = &0F00
+\ STY ZP                 \
+\ LDA #&0F               \ and at the same time set a byte counter in Y and set
+\ STA ZP+1               \ the initial value of the checksum to 16 (15 plus
+\                        \ carry)
+\
+\.osb1
+\
+\ ADC (ZP),Y             \ Set A = A + the Y-th byte of ZP(1 0)
+\
+\ INY                    \ Increment the byte pointer
+\
+\ BNE osb1               \ Loop back to add the next byte until we have added the
+\                        \ whole page
+\
+\IF _STH_DISC OR _IB_DISC
+\
+\ CMP #&CF               \ The checksum test has been disabled
+\ NOP
+\ NOP
+\
+\ELIF _SRAM_DISC
+\
+\ CMP #&CF               \ The sideways RAM variant never calls OSBmod, so it
+\ BNE OSBmod             \ still contains the original checksum test that hasn't
+\                        \ been disabled
+\
+\ENDIF
+\
+\ LDA #219               \ Store 219 in location &9F. This gets checked by the
+\ STA &9F                \ TITLE routine in the main docked code as part of the
+\                        \ copy protection (the game hangs if it doesn't match)
+\
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -2629,20 +2654,33 @@ ENDIF
 
  BEQ P%                 \ Hang the computer as something has gone wrong
 
- EQUB &64, &5F, &61     \ These bytes appear to be unused
- EQUB &74, &74, &72
- EQUB &69, &62, &75
- EQUB &74, &65, &73
- EQUB &00, &C4, &24
- EQUB &6A, &43, &67
- EQUB &65, &74, &72
- EQUB &64, &69, &73
- EQUB &63, &00, &B6
- EQUB &3C, &C6
+\ EQUB &64, &5F, &61     \ These bytes appear to be unused
+\ EQUB &74, &74, &72
+\ EQUB &69, &62, &75
+\ EQUB &74, &65, &73
+\ EQUB &00, &C4, &24
+\ EQUB &6A, &43, &67
+\ EQUB &65, &74, &72
+\ EQUB &64, &69, &73
+\ EQUB &63, &00, &B6
+\ EQUB &3C, &C6
 
  COPYBLOCK TVT1, P%, TVT1code
 
  ORG TVT1code + P% - TVT1
+
+\ ******************************************************************************
+\                                     KEYMAP
+\ ******************************************************************************
+
+.keymap_start
+
+INCLUDE "1-source-files/main-sources/elite-pet-keyboard-matrix.inc"
+
+keymap_len = &280
+
+COPYBLOCK petToAsciiLookup, petToAsciiLookup + keymap_len, keymap_start
+ORG keymap_start + keymap_len
 
 \ ******************************************************************************
 \
@@ -2756,23 +2794,23 @@ ENDIF
 
 .DrawSaturn
 
- LDA #132               \ Style the top and bottom rows as yellow text on a blue
- STA MODE7_VRAM         \ background
- STA MODE7_VRAM+(23*&28)
- LDA #157
- STA MODE7_VRAM+1
- STA MODE7_VRAM+(23*&28)+1
- LDA #131
- STA MODE7_VRAM+2
- STA MODE7_VRAM+(23*&28)+2
-
- LDA #151               \ White graphics
-
- FOR n, 1, 22
- 
-  STA MODE7_VRAM + n*40 \ Set rows 1 to 22 to white graphics
- 
- NEXT
+\ LDA #132               \ Style the top and bottom rows as yellow text on a blue
+\ STA MODE7_VRAM         \ background
+\ STA MODE7_VRAM+(23*&28)
+\ LDA #157
+\ STA MODE7_VRAM+1
+\ STA MODE7_VRAM+(23*&28)+1
+\ LDA #131
+\ STA MODE7_VRAM+2
+\ STA MODE7_VRAM+(23*&28)+2
+\
+\ LDA #151               \ White graphics
+\
+\ FOR n, 1, 22
+\ 
+\  STA MODE7_VRAM + n*40 \ Set rows 1 to 22 to white graphics
+\ 
+\ NEXT
 
  LDA #LO(MODE7_VRAM+MODE7_INDENT+10)     \ Print the title text
  STA ZP
@@ -2815,6 +2853,7 @@ ENDIF
 .PrintText
 
  LDA (P),Y              \ Copy the Y-th byte of the message from P(1 0) to
+ JSR ConvertAscii
  STA (ZP),Y             \ ZP(1 0)
 
  DEY                    \ Decrement the counter
@@ -2875,7 +2914,7 @@ ENDIF
  PRINT "LOADcode = ", ~LOADcode
  PRINT "CATDcode = ", ~CATDcode
  PRINT "DIALS = ", ~DIALS
- PRINT "OSBmod = ", ~OSBmod
+\ PRINT "OSBmod = ", ~OSBmod
  PRINT "ELITE = ", ~ELITE
  PRINT "End of ELITE4 file = ", ~P%
  PRINT "TVT1code = ", ~TVT1code

@@ -73,6 +73,9 @@
                         \ there, jump to empt1 to return from the subroutine
                         \ with the Z flag clear
 
+ STX P
+
+
  LDA ySixelChar,Y       \ Get the sixel character with the relevant row
                         \ pre-filled for the y-coordinate in Y
 
@@ -80,9 +83,16 @@
                         \ pre-filled for the x-coordinate in X, so the result
                         \ is a sixel character with the sixel at (x, y) filled
 
- ORA (SC),Y             \ OR the sixel into the screen, overwriting whatever is
- STA (SC),Y             \ already there
+ STA Q
+ LDA (SC),Y
+ TAX
+ LDA screenToBitfield, X
+ ORA Q
+ TAX
+ LDA bitfieldToScreen, X
+ STA (SC),Y
 
+ LDX P
  LDA #0                 \ Set A = 0 so we return with the Z flag set
 
 .empt1
@@ -92,186 +102,5 @@
 .empt2
 
  LDA #1                 \ Set A = 1 so we return with the Z flag clear
-
- RTS                    \ Return from the subroutine
-
-\ ******************************************************************************
-\
-\       Name: StyleSystemData
-\       Type: Subroutine
-\   Category: Teletext Elite
-\    Summary: Print the control codes to style the Data on System screen
-\
-\ ******************************************************************************
-
-.StyleSystemData
-
- LDA &7C55              \ If the distance is showing, jump to syst1 to style the
- CMP #'D'               \ screen, as everything moves down one line
- BEQ syst1
-
- LDA #130               \ Set to the "green text" control code
-
- STA &7C85              \ Economy
-
- STA &7CD8              \ Government
-
- STA &7D28              \ Tech level
-
- STA &7D78              \ Population
-
- STA &7DBC              \ Species
-
- STA &7E20              \ Gross producticity
-
- STA &7E6C              \ Average radius
-
- LDA #131               \ Set to the "yellow text" control code
-
- STA &7EAC              \ Extended description
- STA &7EAC+(1*40)
- STA &7EAC+(2*40)
- STA &7EAC+(3*40)
- STA &7EAC+(4*40)
-
- RTS                    \ Return from the subroutine
-
-.syst1
-
- LDA #130               \ Set to the "green text" control code
-
- STA &7C5E              \ Distance
-
- STA &7C85+40           \ Economy
-
- STA &7CD8+40           \ Government
-
- STA &7D28+40           \ Tech level
-
- STA &7D78+40           \ Population
-
- STA &7DBC+40           \ Species
-
- STA &7E20+40           \ Gross producticity
-
- STA &7E6C+40           \ Average radius
-
- LDA #131               \ Set to the "yellow text" control code
-
- STA &7EAC+(1*40)       \ Extended description
- STA &7EAC+(2*40)
- STA &7EAC+(3*40)
- STA &7EAC+(4*40)
- STA &7EAC+(5*40)
-
- RTS                    \ Return from the subroutine
-
-\******************************************************************************
-\
-\       Name: StyleBuyCargo
-\       Type: Subroutine
-\   Category: Teletext Elite
-\    Summary: Print the control codes for the Buy Cargo screen
-\
-\ ******************************************************************************
-
-.StyleBuyCargo
-
- LDA #132               \ Style rows 0 and 1 as yellow text, blue background
- STA MODE7_VRAM+(0*40)
- STA MODE7_VRAM+(1*40)
- LDA #157
- STA MODE7_VRAM+(0*40)+1
- STA MODE7_VRAM+(1*40)+1
- LDA #131
- STA MODE7_VRAM+(0*40)+2
- STA MODE7_VRAM+(1*40)+2
-
- RTS                    \ Return from the subroutine
-
-\ ******************************************************************************
-\
-\       Name: StyleCargo
-\       Type: Subroutine
-\   Category: Teletext Elite
-\    Summary: Print the control codes for the cargo list
-\
-\ ******************************************************************************
-
-.StyleCargo
-
- LDA #129               \ Set to the "red text" control code
-
- FOR n, 0, 16
-  STA &7C89 + n*40      \ Set the unit in the 17 price rows to red
- NEXT
-
- LDA #130               \ Set to the "green text" control code
-
- FOR n, 0, 16
-  STA &7C8C + n*40      \ Set the price in the 17 price rows to green
- NEXT
-
- LDA #131               \ Set to the "yellow text" control code
-
- FOR n, 0, 16
-  STA &7C92 + n*40      \ Set the price in the 17 price rows to yellow
- NEXT
-
- RTS                    \ Return from the subroutine
-
-\ ******************************************************************************
-\
-\       Name: StyleSellCargo
-\       Type: Subroutine
-\   Category: Teletext Elite
-\    Summary: Print the control codes for the Sell Cargo list
-\
-\ ******************************************************************************
-
-.StyleSellCargo
-
- LDA #129               \ Set to the "red text" control code
-
- FOR n, 0, 16
-  STA &7C61 + n*40      \ Set the unit in the 17 price rows to red
- NEXT
-
- LDA #131               \ Set to the "yellow text" control code
-
- FOR n, 0, 16
-  STA &7C67 + n*40      \ Set the Sell(Y/N) in the 17 price rows to yellow
- NEXT
-
- RTS                    \ Return from the subroutine
-
-\ ******************************************************************************
-\
-\       Name: StyleEquipShip
-\       Type: Subroutine
-\   Category: Teletext Elite
-\    Summary: Print the control codes for the Sell Cargo list
-\
-\ ******************************************************************************
-
-.StyleEquipShip
-
- LDA #131               \ Set to the "yellow text" control code
-
- FOR n, 0, 16
-  STA &7C54 + n*40      \ Set the number in the 17 price rows to yellow
- NEXT
-
- LDA #134               \ Set to the "cyan text" control code
-
- FOR n, 0, 16
-  STA &7C58 + n*40      \ Set the name in the 17 price rows to yellow
- NEXT
-
- LDA #130               \ Set to the "green text" control code
-
- FOR n, 0, 16
-  STA &7C6C + n*40      \ Set the unit in the 17 price rows to green
- NEXT
 
  RTS                    \ Return from the subroutine

@@ -22,3 +22,5 @@ $RECYCLE.BIN/
 .vscode/
 *.code-workspace
 run.bat
+
+3-assembled-output/

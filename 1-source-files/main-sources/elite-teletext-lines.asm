@@ -89,10 +89,10 @@
 
 .MoveToSixel
 
- LDA rtw_startx         \ Copy the current start coordinate to the end
- STA rtw_endx           \ coordinate
- LDA rtw_starty
- STA rtw_endy
+\ LDA rtw_startx         \ Copy the current start coordinate to the end
+\ STA rtw_endx           \ coordinate
+\ LDA rtw_starty
+\ STA rtw_endy
 
  STX rtw_startx         \ Set the start coordinate to (X, Y)
  STY rtw_starty

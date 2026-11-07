@@ -40,16 +40,7 @@
  LOAD% = &5600          \ The flight code loads this file at address &5600, at
                         \ label XX21
 
-                        \ --- Mod: Code removed for Teletext Elite: ----------->
-
-\SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint
-
-
-                        \ --- And replaced by: -------------------------------->
-
- SHIP_MISSILE = &7B00   \ The address of the missile ship blueprint
-
-                        \ --- End of replacement ------------------------------>
+ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint
 
  ORG CODE%
 

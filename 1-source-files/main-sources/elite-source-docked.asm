@@ -36,15 +36,14 @@
 
                         \ --- And replaced by: -------------------------------->
 
- GUARD &7B00            \ Guard against assembling over the missile ship data,
-                        \ which we have moved to &7B00, into the page before
-                        \ mode 7 screen memory
+ GUARD &7000            \ Guard against assembling over MOSE
 
  _DOCKED = TRUE         \ Set compilation flag for docked vs flight code
 
  _LOADER = FALSE        \ Set compilation flag for loader
 
  INCLUDE "1-source-files/main-sources/elite-teletext-macros.asm"
+ INCLUDE "1-source-files/main-sources/elite-pet.inc"
 
                         \ --- End of replacement ------------------------------>
 
@@ -180,8 +179,8 @@
 
  LS% = &0CFF            \ The start of the descending ship line heap
 
- CATD = &0D7A           \ The address of the CATD routine that is put in place
-                        \ by the third loader, as set in elite-loader3.asm
+ \CATD = &0D7A           \ The address of the CATD routine that is put in place
+ \                       \ by the third loader, as set in elite-loader3.asm
 
  IRQ1 = &114B           \ The address of the IRQ1 routine that implements the
                         \ split screen interrupt handler, as set in
@@ -199,32 +198,28 @@
  CHK = &11D4            \ The address of the first checksum byte for the saved
                         \ commander data file, as set in elite-loader3.asm
 
-                        \ --- Mod: Code removed for Teletext Elite: ----------->
-
-\SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
+SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
                         \ elite-loader3.asm
-
-                        \ --- And replaced by: -------------------------------->
-
- SHIP_MISSILE = &7B00   \ The address of the missile ship blueprint, as set in
-                        \ elite-loader3.asm, which we have moved to &7B00, into
-                        \ the page before mode 7 screen memory
-
-                        \ --- End of replacement ------------------------------>
 
  VIA = &FE00            \ Memory-mapped space for accessing internal hardware,
                         \ such as the video ULA, 6845 CRTC and 6522 VIAs (also
                         \ known as SHEILA)
 
- OSBYTE = &FFF4         \ The address for the OSBYTE routine
+\ OSBYTE = &FFF4         \ The address for the OSBYTE routine
+ OSBYTE = &7009         \ The address for the OSBYTE routine
 
- OSWORD = &FFF1         \ The address for the OSWORD routine
+\ OSWORD = &FFF1         \ The address for the OSWORD routine
+ OSWORD = &7003         \ The address for the OSWORD routine
 
- OSFILE = &FFDD         \ The address for the OSFILE routine
+\ OSFILE = &FFDD         \ The address for the OSFILE routine
+ OSFILE = &7006         \ The address for the OSFILE routine
 
- OSWRCH = &FFEE         \ The address for the OSWRCH routine
+\ OSWRCH = &FFEE         \ The address for the OSWRCH routine
+ OSWRCH = &700c         \ The address for the OSWRCH routine
 
- OSCLI = &FFF7          \ The address for the OSCLI routine
+\ OSCLI = &FFF7          \ The address for the OSCLI vector
+ OSCLI = &7000
+
 
 \ ******************************************************************************
 \
@@ -238,6 +233,7 @@
 \ ******************************************************************************
 
  ORG &0000
+ GUARD &90
 
 .ZP
 
@@ -714,6 +710,10 @@
                         \ for counters when drawing explosion clouds and partial
                         \ circles
 
+ \ The two bytes at &90 are the interrupt vector, used by MOSE.
+ ORG &92
+ GUARD 0
+
 .SWAP
 
  SKIP 1                 \ Temporary storage, used to store a flag that records
@@ -806,7 +806,7 @@
 
 .K2
 
- SKIP 4                 \ Temporary storage, used in a number of places
+ SKIP 15                 \ Temporary storage, used in a number of places
 
  ORG &00D1
 
@@ -1873,23 +1873,25 @@
                         \ Toggled by pressing "B" when paused, see the DKS3
                         \ routine for details
 
-.CATF
+\.CATF
+\
+\ SKIP 1                 \ The disc catalogue flag
+\                        \
+\                        \ Determines whether a disc catalogue is currently in
+\                        \ progress, so the TT26 print routine can format the
+\                        \ output correctly:
+\                        \
+\                        \   * 0 = disc is not currently being catalogued
+\                        \
+\                        \   * 1 = disc is currently being catalogued
+\                        \
+\                        \ Specifically, when CATF is non-zero, TT26 will omit
+\                        \ column 17 from the catalogue so that it will fit
+\                        \ on-screen (column 17 is blank column in the middle
+\                        \ of the catalogue, between the two lists of filenames,
+\                        \ so it can be dropped without affecting the layout)
 
- SKIP 1                 \ The disc catalogue flag
-                        \
-                        \ Determines whether a disc catalogue is currently in
-                        \ progress, so the TT26 print routine can format the
-                        \ output correctly:
-                        \
-                        \   * 0 = disc is not currently being catalogued
-                        \
-                        \   * 1 = disc is currently being catalogued
-                        \
-                        \ Specifically, when CATF is non-zero, TT26 will omit
-                        \ column 17 from the catalogue so that it will fit
-                        \ on-screen (column 17 is blank column in the middle
-                        \ of the catalogue, between the two lists of filenames,
-                        \ so it can be dropped without affecting the layout)
+.LAST_VARIABLE
 
 \ ******************************************************************************
 \
@@ -2118,7 +2120,7 @@
 
 .DOBEGIN
 
- JSR DEEOR              \ Decrypt the main docked code between &1300 and &5FFF
+ \JSR DEEOR              \ Decrypt the main docked code between &1300 and &5FFF
 
  JMP BEGIN              \ Jump to BEGIN to initialise the configuration
                         \ variables and start the game
@@ -2133,83 +2135,83 @@
 \
 \ ******************************************************************************
 
-.DEEOR
-
-IF _STH_DISC OR _IB_DISC
-
- LDY #0                 \ We're going to work our way through a large number of
-                        \ encrypted bytes, so we set Y to 0 to be the index of
-                        \ the current byte within its page in memory
-
- STY SC                 \ Set the low byte of SC(1 0) to 0
-
- LDX #&13               \ Set X to &13 to be the page number of the current
-                        \ byte, so we start the decryption with the first byte
-                        \ of page &13
-
-.DEEORL
-
- STX SCH                \ Set the high byte of SC(1 0) to X, so SC(1 0) now
-                        \ points to the first byte of page X
-
- TYA                    \ Set A to Y, so A now contains the index of the current
-                        \ byte within its page
-
- EOR (SC),Y             \ EOR the current byte with its index within the page
-
- EOR #&33               \ EOR the current byte with &33
-
- STA (SC),Y             \ Update the current byte
-
-                        \ The current byte is in page X at offset Y, and SC(1 0)
-                        \ points to the first byte of page X, so we just did
-                        \  this:
-                        \
-                        \   (X Y) = (X Y) EOR Y EOR &33
-
- DEY                    \ Decrement the index in Y to point to the next byte
-
- BNE DEEORL             \ Loop back to DEEORL to decrypt the next byte until we
-                        \ have done the whole page
-
- INX                    \ Increment X to point to the next page in memory
-
- CPX #&60               \ Loop back to DEEORL to decrypt the next page until we
- BNE DEEORL             \ reach the start of page &60
-
- JMP BRKBK              \ Call BRKBK to set BRKV to point to the BRBR routine
-                        \ and return from the subroutine using a tail call
-
-ELIF _SRAM_DISC
-
- NOP                    \ The sideways RAM variant is not encrypted, so the
- NOP                    \ decryption code is disabled and is replaced by NOPs
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
- NOP
-
- JMP BRKBK              \ Call BRKBK to set BRKV to point to the BRBR routine
-                        \ and return from the subroutine using a tail call
-
-ENDIF
+\.DEEOR
+\
+\IF _STH_DISC OR _IB_DISC
+\
+\ LDY #0                 \ We're going to work our way through a large number of
+\                        \ encrypted bytes, so we set Y to 0 to be the index of
+\                        \ the current byte within its page in memory
+\
+\ STY SC                 \ Set the low byte of SC(1 0) to 0
+\
+\ LDX #&13               \ Set X to &13 to be the page number of the current
+\                        \ byte, so we start the decryption with the first byte
+\                        \ of page &13
+\
+\.DEEORL
+\
+\ STX SCH                \ Set the high byte of SC(1 0) to X, so SC(1 0) now
+\                        \ points to the first byte of page X
+\
+\ TYA                    \ Set A to Y, so A now contains the index of the current
+\                        \ byte within its page
+\
+\ EOR (SC),Y             \ EOR the current byte with its index within the page
+\
+\ EOR #&33               \ EOR the current byte with &33
+\
+\ STA (SC),Y             \ Update the current byte
+\
+\                        \ The current byte is in page X at offset Y, and SC(1 0)
+\                        \ points to the first byte of page X, so we just did
+\                        \  this:
+\                        \
+\                        \   (X Y) = (X Y) EOR Y EOR &33
+\
+\ DEY                    \ Decrement the index in Y to point to the next byte
+\
+\ BNE DEEORL             \ Loop back to DEEORL to decrypt the next byte until we
+\                        \ have done the whole page
+\
+\ INX                    \ Increment X to point to the next page in memory
+\
+\ CPX #&60               \ Loop back to DEEORL to decrypt the next page until we
+\ BNE DEEORL             \ reach the start of page &60
+\
+\ JMP BRKBK              \ Call BRKBK to set BRKV to point to the BRBR routine
+\                        \ and return from the subroutine using a tail call
+\
+\ELIF _SRAM_DISC
+\
+\ NOP                    \ The sideways RAM variant is not encrypted, so the
+\ NOP                    \ decryption code is disabled and is replaced by NOPs
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\ NOP
+\
+\ JMP BRKBK              \ Call BRKBK to set BRKV to point to the BRBR routine
+\                        \ and return from the subroutine using a tail call
+\
+\ENDIF
 
 \ ******************************************************************************
 \
@@ -2225,7 +2227,7 @@ ENDIF
 
 .DOENTRY
 
- JSR DEEOR              \ Decrypt the newly loaded code
+\ JSR DEEOR              \ Decrypt the newly loaded code
 
  JSR RES2               \ Reset a number of flight variables and workspaces
 
@@ -2382,7 +2384,7 @@ ENDIF
 
 .SCRAM
 
- JSR DEEOR              \ Decrypt the main docked code between &1300 and &5FFF
+\ JSR DEEOR              \ Decrypt the main docked code between &1300 and &5FFF
 
  JSR RES2               \ Reset a number of flight variables and workspaces
 
@@ -5869,7 +5871,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- JSR StyleStatusMode    \ Style the Status Mode screen
+\ JSR StyleStatusMode    \ Style the Status Mode screen
 
                         \ --- End of added code ------------------------------->
 
@@ -7189,26 +7191,26 @@ ENDIF
  LDA XC                 \ Fetch XC, the x-coordinate (column) of the text cursor
                         \ into A
 
- LDX CATF               \ If CATF = 0, jump to RR5, otherwise we are printing a
- BEQ RR5                \ disc catalogue
+ \LDX CATF               \ If CATF = 0, jump to RR5, otherwise we are printing a
+ \BEQ RR5                \ disc catalogue
 
- CPY #' '               \ If the character we want to print in Y is a space,
- BNE RR5                \ jump to RR5
+ \CPY #' '               \ If the character we want to print in Y is a space,
+ \BNE RR5                \ jump to RR5
 
-                        \ If we get here, then CATF is non-zero, so we are
-                        \ printing a disc catalogue and we are not printing a
-                        \ space, so we drop column 17 from the output so the
-                        \ catalogue will fit on-screen (column 17 is a blank
-                        \ column in the middle of the catalogue, between the
-                        \ two lists of filenames, so it can be dropped without
-                        \ affecting the layout). Without this, the catalogue
-                        \ would be one character too wide for the square screen
-                        \ mode (it's 34 characters wide, while the screen mode
-                        \ is only 33 characters across)
+ \                       \ If we get here, then CATF is non-zero, so we are
+ \                       \ printing a disc catalogue and we are not printing a
+ \                       \ space, so we drop column 17 from the output so the
+ \                       \ catalogue will fit on-screen (column 17 is a blank
+ \                       \ column in the middle of the catalogue, between the
+ \                       \ two lists of filenames, so it can be dropped without
+ \                       \ affecting the layout). Without this, the catalogue
+ \                       \ would be one character too wide for the square screen
+ \                       \ mode (it's 34 characters wide, while the screen mode
+ \                       \ is only 33 characters across)
 
- CMP #17                \ If A = 17, i.e. the text cursor is in column 17, jump
- BEQ RR4                \ to RR4 to restore the registers and return from the
-                        \ subroutine, thus omitting this column
+ \CMP #17                \ If A = 17, i.e. the text cursor is in column 17, jump
+ \BEQ RR4                \ to RR4 to restore the registers and return from the
+ \                       \ subroutine, thus omitting this column
 
 .RR5
 
@@ -7384,6 +7386,7 @@ ENDIF
 
  LDA K3                 \ Store the character at the XC-th character on the row
  LDY XC                 \ at SC(1 0)
+ JSR ConvertAscii
  STA (SC), Y
 
                         \ --- End of replacement ------------------------------>
@@ -11173,7 +11176,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- JSR SetMode7Graphics   \ Set all screen rows to white graphics
+\ JSR SetMode7Graphics   \ Set all screen rows to white graphics
 
                         \ --- End of added code ------------------------------->
 
@@ -11612,7 +11615,7 @@ ENDIF
                         \ If we get here then this is a space view, death screen
                         \ or chart, so we want a graphics view
 
- JSR SetMode7Graphics   \ Set all screen rows to white graphics
+\ JSR SetMode7Graphics   \ Set all screen rows to white graphics
 
 .BOL1
 
@@ -12799,7 +12802,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- JSR StyleSystemData    \ Style the Data on System screen
+\  JSR StyleSystemData    \ Style the Data on System screen
 
                         \ --- End of added code ------------------------------->
 
@@ -12983,13 +12986,13 @@ ENDIF
  BIT showChart          \ Only display the fuel circle if bit 7 of showChart is
  BPL long1              \ set, by skipping the following if bit 7 is clear
 
- LDA #&11               \ Set sixel plotting logic to ORA (SC),Y, so the fuel
+ LDA #&05               \ Set sixel plotting logic to ORA zpg, so the fuel
  STA sixelLogic         \ circle is fully drawn
 
  JSR TT14               \ Call TT14 to draw a circle with crosshairs at the
                         \ current system's galactic coordinates
 
- LDA #&51               \ Set sixel plotting logic back to EOR (SC),Y
+ LDA #&45               \ Set sixel plotting logic back to EOR zpg
  STA sixelLogic
 
  RTS                    \ Return from the subroutine
@@ -13413,7 +13416,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- JSR StyleBuyCargo      \ Style the Buy Cargo screen headers
+\  JSR StyleBuyCargo      \ Style the Buy Cargo screen headers
 
                         \ --- End of added code ------------------------------->
 
@@ -13436,7 +13439,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- JSR StyleCargo         \ Style the cargo line
+\ JSR StyleCargo         \ Style the cargo line
 
                         \ --- End of added code ------------------------------->
 
@@ -13652,10 +13655,10 @@ ENDIF
  LDX R                  \ If R is non-zero then skip to NWDAV2, as we are
  BNE NWDAV2             \ already building a number
 
- CMP #'y'               \ If "Y" was pressed, jump to NWDAV1 to return the
+ CMP #'Y'               \ If "Y" was pressed, jump to NWDAV1 to return the
  BEQ NWDAV1             \ maximum number allowed (i.e. buy/sell the whole stock)
 
- CMP #'n'               \ If "N" was pressed, jump to NWDAV3 to return from the
+ CMP #'N'               \ If "N" was pressed, jump to NWDAV3 to return from the
  BEQ NWDAV3             \ subroutine with a result of 0 (i.e. abort transaction)
 
 .NWDAV2
@@ -13896,7 +13899,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- JSR StyleSellCargo     \ Style the sell cargo line
+\ JSR StyleSellCargo     \ Style the sell cargo line
 
                         \ --- End of added code ------------------------------->
 
@@ -14008,7 +14011,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- JSR StyleInventory     \ Style the Inventory screen
+\ JSR StyleInventory     \ Style the Inventory screen
 
                         \ --- End of added code ------------------------------->
 
@@ -14533,7 +14536,7 @@ ENDIF
  INC XC                 \ Move forward one character so we don't overwrite the
                         \ sixel containing the system pixel
 
- JSR SetTextYellow      \ Set mode 7 yellow text
+\ JSR SetTextYellow      \ Set mode 7 yellow text
 
  DEC XC                 \ Move back one character so we don't insert any extra
                         \ space
@@ -14548,7 +14551,7 @@ ENDIF
 
  INC XC                 \ Move forward one character to compensate for the above
 
- JSR SetGraphicsWhite   \ Set mode 7 white graphics
+\ JSR SetGraphicsWhite   \ Set mode 7 white graphics
 
                         \ --- End of added code ------------------------------->
 
@@ -14660,12 +14663,12 @@ ENDIF
 
 .RevealMessage
 
- LDA #132               \ Style the bottom row as yellow text on blue background
- STA MODE7_VRAM+(23*&28)
- LDA #157
- STA MODE7_VRAM+(23*&28)+1
- LDA #131
- STA MODE7_VRAM+(23*&28)+2
+\ LDA #132               \ Style the bottom row as yellow text on blue background
+\ STA MODE7_VRAM+(23*&28)
+\ LDA #157
+\ STA MODE7_VRAM+(23*&28)+1
+\ LDA #131
+\ STA MODE7_VRAM+(23*&28)+2
 
  LDA #LO(MODE7_VRAM+(23*&28)+MODE7_INDENT+2)   \ Point SC to on-screen message
  STA SC
@@ -14678,6 +14681,7 @@ ENDIF
 .rmes1
 
  LDA (P),Y              \ Copy the Y-th byte of the message from P(1 0) to
+ JSR ConvertAscii
  STA (SC),Y             \ SC(1 0)
 
  DEY                    \ Decrement the counter
@@ -15863,7 +15867,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- JSR StyleMarketPrices  \ Style the Market Prices screen
+\ JSR StyleMarketPrices  \ Style the Market Prices screen
 
                         \ --- End of added code ------------------------------->
 
@@ -16051,7 +16055,7 @@ ENDIF
  BPL eny1               \ Loop back to copy the next byte until we have copied
                         \ the whole table
 
- JSR CATD               \ Call CATD to reload the disc catalogue
+\ JSR CATD               \ Call CATD to reload the disc catalogue
 
  LDX #LO(RDLI)          \ Set (Y X) to point to RDLI ("R.D.CODE")
  LDY #HI(RDLI)
@@ -16356,7 +16360,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- JSR StyleEquipShip     \ Style the equipment list
+\ JSR StyleEquipShip     \ Style the equipment list
 
                         \ --- End of added code ------------------------------->
 
@@ -18193,15 +18197,15 @@ ENDIF
 
 .DET1
 
- LDA #6                 \ Set A to 6 so we can update 6845 register R6 below
-
- SEI                    \ Disable interrupts so we can update the 6845
-
- STA VIA+&00            \ Set 6845 register R6 to the value in X. Register R6
- STX VIA+&01            \ is the "vertical displayed" register, which sets the
-                        \ number of rows shown on the screen
-
- CLI                    \ Re-enable interrupts
+\ LDA #6                 \ Set A to 6 so we can update 6845 register R6 below
+\
+\ SEI                    \ Disable interrupts so we can update the 6845
+\
+\ STA VIA+&00            \ Set 6845 register R6 to the value in X. Register R6
+\ STX VIA+&01            \ is the "vertical displayed" register, which sets the
+\                        \ number of rows shown on the screen
+\
+\ CLI                    \ Re-enable interrupts
 
  RTS                    \ Return from the subroutine
 
@@ -20134,19 +20138,19 @@ ENDIF
  LDX #0                 \ Set the initial values for the results, X = Y = 0,
  LDY #0                 \ which we now increase or decrease appropriately
 
- CMP #&19               \ If left arrow was pressed, set X = X - 1
+ CMP #&66               \ If ',' was pressed, set X = X - 1
  BNE P%+3
  DEX
 
- CMP #&79               \ If right arrow was pressed, set X = X + 1
+ CMP #&67               \ If '.' arrow was pressed, set X = X + 1
  BNE P%+3
  INX
 
- CMP #&39               \ If up arrow was pressed, set Y = Y + 1
+ CMP #&51               \ If S was pressed, set Y = Y + 1
  BNE P%+3
  INY
 
- CMP #&29               \ If down arrow was pressed, set Y = Y - 1
+ CMP #&42               \ If X was pressed, set Y = Y - 1
  BNE P%+3
  DEY
 
@@ -20857,7 +20861,7 @@ ENDIF
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
 
- JSR UpdateGalfaxPage   \ Update the Galfax page number
+\ JSR UpdateGalfaxPage   \ Update the Galfax page number
 
                         \ --- End of added code ------------------------------->
 
@@ -20905,7 +20909,9 @@ ENDIF
 
 .FRCE
 
+ beq frce_skip
  JSR TT102              \ Call TT102 to process the key pressed in A
+.frce_skip
 
  LDA QQ12               \ Fetch the docked flag from QQ12 into A
 
@@ -21359,12 +21365,12 @@ ENDIF
 
  JSR ClearMode7Screen   \ Clear the screen
 
- LDA #144+7             \ Set all screen rows to white graphics
- JSR SetMode7Graphics
+\ LDA #144+7             \ Set all screen rows to white graphics
+\ JSR SetMode7Graphics
 
                         \ --- End of added code ------------------------------->
 
- LDX #(CATF-COMC)       \ We start by zeroing all the configuration variables
+ LDX #(LAST_VARIABLE-COMC) \ We start by zeroing all the configuration variables
                         \ between COMC and CATF, to set them to their default
                         \ values, so set a counter in X for CATF - COMC bytes
 
@@ -21434,14 +21440,38 @@ ENDIF
  JSR TITLE              \ (Y/N)?{sentence case}{cr}{cr}"), returning with the
                         \ internal number of the key pressed in A
 
- CMP #&44               \ Did we press "Y"? If not, jump to QU5, otherwise
- BNE QU5                \ continue on to load a new commander
+{
+.br1loop
+ cmp #&45               \ The user pressed J... or Y on the business keyboard.
+                        \ Assume the latter.
+ bne not_z
+ jsr switchToBusinessKeyboard
+ lda #&44
+ bne br1continue           \ always taken
 
+.br1again               \ wedged in here to be out of the code flow
+ jsr TLL2
+ jmp br1loop
+
+ .not_z
+ cmp #&35               \ The user pressed U, which is N on the business keyboard.
+ bne br1continue
+ jsr switchToBusinessKeyboard
+ lda #&55
+
+ .br1continue
+ CMP #&55               \ Did we press "Y"? If not, jump to QU5, otherwise
+ BEQ QU5                \ continue on to load a new commander
+ cmp #&44
+ bne br1again
+
+.loadNewCommander
  JSR DFAULT             \ Call DFAULT to reset the current commander data block
                         \ to the last saved commander
 
  JSR SVE                \ Call SVE to load a new commander into the last saved
                         \ commander data block
+}
 
 .QU5
 
@@ -21652,7 +21682,7 @@ ENDIF
  LDA #1                 \ Clear the top part of the screen, draw a white border,
  JSR TT66               \ and set the current view type in QQ11 to 1
 
- JSR SetMode7Graphics   \ Set all screen rows to white graphics
+\ JSR SetMode7Graphics   \ Set all screen rows to white graphics
 
  DEC QQ11               \ Decrement QQ11 to 0, so from here on we are using a
                         \ space view
@@ -21660,16 +21690,16 @@ ENDIF
  LDA #96                \ Set nosev_z hi = 96 (96 is the value of unity in the
  STA INWK+14            \ rotation vector)
 
- LDA &9F                \ As part of the copy protection, location &9F is set to
- CMP #219               \ 219 in the OSBmod routine in elite-loader3.asm. This
- BEQ tiwe               \ jumps to tiwe if the value is unchanged, otherwise it
-                        \ crashes the game with the following (as presumably
-                        \ the game code has been tampered with)
-
- LDA #&10               \ Modify the STA DELTA instruction in RES2 to &10 &FE,
- STA modify+2           \ which is a BPL P%-2 instruction, to create an infinite
- LDA #&FE               \ loop and hang the game
- STA modify+3
+\ LDA &9F                \ As part of the copy protection, location &9F is set to
+\ CMP #219               \ 219 in the OSBmod routine in elite-loader3.asm. This
+\ BEQ tiwe               \ jumps to tiwe if the value is unchanged, otherwise it
+\                        \ crashes the game with the following (as presumably
+\                        \ the game code has been tampered with)
+\
+\ LDA #&10               \ Modify the STA DELTA instruction in RES2 to &10 &FE,
+\ STA modify+2           \ which is a BPL P%-2 instruction, to create an infinite
+\ LDA #&FE               \ loop and hang the game
+\ STA modify+3
 
 .tiwe
 
@@ -21728,8 +21758,8 @@ ENDIF
  LDY #6                 \ Move the text cursor to column 6
  STY XC
 
- LDA #135               \ Style row 19 as white text
- STA MODE7_VRAM+(19*&28)
+\ LDA #135               \ Style row 19 as white text
+\ STA MODE7_VRAM+(19*&28)
 
                         \ --- End of added code ------------------------------->
 
@@ -21759,8 +21789,8 @@ ENDIF
  LDA #19                \ Move the text cursor to row 19
  STA YC
 
- LDA #129               \ Override the first character on row 18 with a red text
- STA &7EF8              \ control character, as otherwise error messages will
+\ LDA #129               \ Override the first character on row 18 with a red text
+\ STA &7EF8              \ control character, as otherwise error messages will
                         \ appear as graphics characters
                         \
                         \ This also stops a line feed being printed as the first
@@ -21813,6 +21843,10 @@ ENDIF
  JSR DETOK              \ Print extended token 12 ("({single cap}C) ACORNSOFT
                         \ 1984")
 
+ ; Key debounce: we're using XC as a hacky temporary here. We need to loop until
+ ; a key is _not_ pressed before looping until a key is pressed. On entry, XC
+ ; is non-zero, meaning we're in the first phase.
+
 .TLL2
 
  LDA INWK+7             \ If z_hi (the ship's distance) is 1, jump to TL1 to
@@ -21840,14 +21874,26 @@ ENDIF
 
  DEC MCNT               \ Decrement the main loop counter
 
- LDA VIA+&40            \ Read 6522 System VIA input register IRB (SHEILA &40)
+\ LDA VIA+&40            \ Read 6522 System VIA input register IRB (SHEILA &40)
 
- AND #%00010000         \ Bit 4 of IRB (PB4) is clear if joystick 1's fire
+\ AND #%00010000         \ Bit 4 of IRB (PB4) is clear if joystick 1's fire
                         \ button is pressed, otherwise it is set, so AND'ing
                         \ the value of IRB with %10000 extracts this bit
 
- BEQ TL2                \ If the joystick fire button is pressed, jump to TL2
+\ BEQ TL2                \ If the joystick fire button is pressed, jump to TL2
+\
+ 
+ lda XC
+ beq debounced
+ {
+    ; Debounce code.
+    jsr RDKEY
+    bne TLL2            \ If a key is pressed, loop.
 
+    lda #0              \ No key pressed? Start waiting for a key.
+    sta XC
+ }
+ .debounced
  JSR RDKEY              \ Scan the keyboard for a key press
 
  BEQ TLL2               \ If no key was pressed, loop back up to move/rotate
@@ -22078,32 +22124,82 @@ ENDIF
 \ ******************************************************************************
 
 .MT26
+{
+ ptr = XX2 + 1
+ len = XX2 + 3
 
- LDA #%10000001         \ Clear 6522 System VIA interrupt enable register IER
- STA VIA+&4E            \ (SHEILA &4E) bit 1 (i.e. enable the CA2 interrupt,
-                        \ which comes from the keyboard)
+ lda RLINE+0
+ sta ptr+0
+ lda RLINE+1
+ sta ptr+1
+ lda #0
+ sta len
+ 
+.mt26loop
+ jsr t                  \ get ascii character into A
 
- JSR FLKB               \ Call FLKB to flush the keyboard buffer
+ cmp #127             \ delete?
+ beq mt26delete
+ cmp #13                \ enter?
+ beq mt26enter
 
- LDX #LO(RLINE)         \ Set (Y X) to point to the RLINE parameter block
- LDY #HI(RLINE)
+ cmp RLINE+3            \ bounds check the input character
+ bcc mt26loop
+ cmp RLINE+4
+ bcs mt26loop
 
- LDA #0                 \ Call OSWORD with A = 0 to read a line from the current
- JSR OSWORD             \ input stream (i.e. the keyboard)
+ ldy len                \ can we enter a printable character?
+ cpy RLINE+2 
+ beq mt26loop
 
- BCC P%+4               \ The C flag will be set if we pressed ESCAPE when
-                        \ entering the name, otherwise it will be clear, so
-                        \ skip the next instruction if ESCAPE is not pressed
+ sta (ptr), y           \ store byte
+ inc len
 
- LDY #0                 \ ESCAPE was pressed, so set Y = 0 (as the OSWORD call
-                        \ returns the length of the entered string in Y)
+ bne print_and_loop     \ always taken, len is not zero
 
- LDA #%00000001         \ Set 6522 System VIA interrupt enable register IER
- STA VIA+&4E            \ (SHEILA &4E) bit 1 (i.e. disable the CA2 interrupt,
-                        \ which comes from the keyboard)
+.mt26delete
+ ldy len
+ beq mt26loop           \ check buffer is not empty
 
- JMP FEED               \ Jump to FEED to print a newline, returning from the
-                        \ subroutine using a tail call
+ dec len
+
+.print_and_loop
+ jsr CHPR
+ jmp mt26loop
+
+.mt26enter
+ ldy len
+ sta (ptr), y           \ store byte
+ iny
+
+ jmp FEED               \ print newline and return
+}
+
+\ LDA #%10000001         \ Clear 6522 System VIA interrupt enable register IER
+\ STA VIA+&4E            \ (SHEILA &4E) bit 1 (i.e. enable the CA2 interrupt,
+\                        \ which comes from the keyboard)
+\
+\ JSR FLKB               \ Call FLKB to flush the keyboard buffer
+\
+\ LDX #LO(RLINE)         \ Set (Y X) to point to the RLINE parameter block
+\ LDY #HI(RLINE)
+\
+\ LDA #0                 \ Call OSWORD with A = 0 to read a line from the current
+\ JSR OSWORD             \ input stream (i.e. the keyboard)
+\
+\ BCC P%+4               \ The C flag will be set if we pressed ESCAPE when
+\                        \ entering the name, otherwise it will be clear, so
+\                        \ skip the next instruction if ESCAPE is not pressed
+\
+\ LDY #0                 \ ESCAPE was pressed, so set Y = 0 (as the OSWORD call
+\                        \ returns the length of the entered string in Y)
+\
+\ LDA #%00000001         \ Set 6522 System VIA interrupt enable register IER
+\ STA VIA+&4E            \ (SHEILA &4E) bit 1 (i.e. disable the CA2 interrupt,
+\                        \ which comes from the keyboard)
+\
+\ JMP FEED               \ Jump to FEED to print a newline, returning from the
+\                        \ subroutine using a tail call
 
 \ ******************************************************************************
 \
@@ -22307,13 +22403,14 @@ ENDIF
 
 .CATS
 
- JSR GTDRV              \ Get an ASCII disc drive number from the keyboard in A,
-                        \ setting the C flag if an invalid drive number was
-                        \ entered
-
- BCS DELT-1             \ If the C flag is set, then an invalid drive number was
-                        \ entered, so return from the subroutine (as DELT-1
-                        \ contains an RTS)
+\ JSR GTDRV              \ Get an ASCII disc drive number from the keyboard in A,
+\                        \ setting the C flag if an invalid drive number was
+\                        \ entered
+\
+\ BCS DELT-1             \ If the C flag is set, then an invalid drive number was
+\                        \ entered, so return from the subroutine (as DELT-1
+\                        \ contains an RTS)
+ lda #0
 
  STA CTLI+1             \ Store the drive number in the second byte of the
                         \ command string at CTLI, so it overwrites the "0" in
@@ -22328,10 +22425,11 @@ ENDIF
  JSR DETOK              \ prints the boxed-out title "DRIVE {drive number}
                         \ CATALOGUE"
 
- LDA #1                 \ Set the CATF flag to 1, so that the TT26 routine will
- STA CATF               \ print out the disc catalogue correctly
-
- STA XC                 \ Move the text cursor to column 1
+\ LDA #1                 \ Set the CATF flag to 1, so that the TT26 routine will
+\ STA CATF               \ print out the disc catalogue correctly
+\
+ LDA #1
+ STA XC                 \ Move the text cursor to column 0
 
  LDX #LO(CTLI)          \ Set (Y X) to point to the OS command at CTLI, which
  LDY #HI(CTLI)          \ contains a dot and the drive number, which is the
@@ -22341,8 +22439,8 @@ ENDIF
  JSR OSCLI              \ Call OSCLI to execute the OS command at (Y X), which
                         \ catalogues the disc
 
- DEC CATF               \ Decrement the CATF flag back to 0, so the TT26 routine
-                        \ reverts to standard formatting
+\ DEC CATF               \ Decrement the CATF flag back to 0, so the TT26 routine
+\                        \ reverts to standard formatting
 
  CLC                    \ Clear the C flag
 
@@ -22479,7 +22577,7 @@ ENDIF
 
 .MEBRKL
 
- JSR OSWRCH             \ Print the character in A (which contains a beep on the
+ JSR CHPR               \ Print the character in A (which contains a beep on the
                         \ first loop iteration), and then any non-zero
                         \ characters we fetch from the error message
 
@@ -22735,17 +22833,18 @@ ENDIF
  PHA                    \ Store A on the stack so we can restore it after the
                         \ call to GTDRV
 
- JSR GTDRV              \ Get an ASCII disc drive number from the keyboard in A,
-                        \ setting the C flag if an invalid drive number was
-                        \ entered
+\ JSR GTDRV              \ Get an ASCII disc drive number from the keyboard in A,
+\                        \ setting the C flag if an invalid drive number was
+\                        \ entered
+ lda #'0'
 
  STA INWK+1             \ Store the ASCII drive number in INWK+1, which is the
                         \ drive character of the filename string ":0.E."
 
  PLA                    \ Restore A from the stack
 
- BCS QUR                \ If the C flag is set, then an invalid drive number was
-                        \ entered, so jump to QUR to return from the subroutine
+\ BCS QUR                \ If the C flag is set, then an invalid drive number was
+\                        \ entered, so jump to QUR to return from the subroutine
 
  LDX #INWK              \ Store a pointer to INWK at the start of the block at
  STX &0C00              \ &0C00, storing #INWK in the low byte because INWK is
@@ -23548,97 +23647,7 @@ ENDIF
                         \ Fall through into KYTB to return from the subroutine,
                         \ as the first byte of KYTB is an RTS
 
-\ ******************************************************************************
-\
-\       Name: CTRL
-\       Type: Subroutine
-\   Category: Keyboard
-\    Summary: Scan the keyboard to see if CTRL is currently pressed
-\
-\ ------------------------------------------------------------------------------
-\
-\ Returns:
-\
-\   X                   X = %10000001 (i.e. 129 or -127) if CTRL is being
-\                       pressed
-\
-\                       X = 1 if CTRL is not being pressed
-\
-\   A                   Contains the same as X
-\
-\ ******************************************************************************
-
-.CTRL
-
- LDX #1                 \ Set X to the internal key number for CTRL and fall
-                        \ through to DKS4 to scan the keyboard
-
-\ ******************************************************************************
-\
-\       Name: DKS4
-\       Type: Subroutine
-\   Category: Keyboard
-\    Summary: Scan the keyboard to see if a specific key is being pressed
-\  Deep dive: The key logger
-\
-\ ------------------------------------------------------------------------------
-\
-\ Arguments:
-\
-\   X                   The internal number of the key to check (see p.142 of
-\                       the Advanced User Guide for a list of internal key
-\                       numbers)
-\
-\ ------------------------------------------------------------------------------
-\
-\ Returns:
-\
-\   A                   If the key in A is being pressed, A contains the
-\                       original argument A, but with bit 7 set (i.e. A + 128).
-\                       If the key in A is not being pressed, the value in A is
-\                       unchanged
-\
-\   X                   Contains the same as A
-\
-\ ******************************************************************************
-
-.DKS4
-
- LDA #%00000011         \ Set A to %00000011, so it's ready to send to SHEILA
-                        \ once interrupts have been disabled
-
- SEI                    \ Disable interrupts so we can scan the keyboard
-                        \ without being hijacked
-
- STA VIA+&40            \ Set 6522 System VIA output register ORB (SHEILA &40)
-                        \ to %00000011 to stop auto scan of keyboard
-
- LDA #%01111111         \ Set 6522 System VIA data direction register DDRA
- STA VIA+&43            \ (SHEILA &43) to %01111111. This sets the A registers
-                        \ (IRA and ORA) so that:
-                        \
-                        \   * Bits 0-6 of ORA will be sent to the keyboard
-                        \
-                        \   * Bit 7 of IRA will be read from the keyboard
-
- STX VIA+&4F            \ Set 6522 System VIA output register ORA (SHEILA &4F)
-                        \ to X, the key we want to scan for; bits 0-6 will be
-                        \ sent to the keyboard, of which bits 0-3 determine the
-                        \ keyboard column, and bits 4-6 the keyboard row
-
- LDX VIA+&4F            \ Read 6522 System VIA output register IRA (SHEILA &4F)
-                        \ into X; bit 7 is the only bit that will have changed.
-                        \ If the key is pressed, then bit 7 will be set,
-                        \ otherwise it will be clear
-
- LDA #%00001011         \ Set 6522 System VIA output register ORB (SHEILA &40)
- STA VIA+&40            \ to %00001011 to restart auto scan of keyboard
-
- CLI                    \ Allow interrupts again
-
- TXA                    \ Transfer X into A
-
- RTS                    \ Return from the subroutine
+INCLUDE "1-source-files/main-sources/elite-pet-keyboard.asm"
 
 \ ******************************************************************************
 \
@@ -24078,7 +24087,7 @@ ENDIF
  TAY                    \ Copy A to Y, so Y contains the internal key number
                         \ of the key pressed
 
- LDA (TRTB%),Y          \ The address in TRTB% points to the MOS key
+ LDA petToAsciiLookup,Y          \ The address in TRTB% points to the MOS key
                         \ translation table, which is used to translate
                         \ internal key numbers to ASCII, so this fetches the
                         \ key's ASCII code into A
