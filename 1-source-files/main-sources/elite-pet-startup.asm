@@ -11,6 +11,14 @@ INCLUDE "1-source-files/main-sources/elite-pet.inc"
 .ptr                    skip 2  ; address of file being worked on
 .ieee_has_buffered_char skip 1  ; whether the IEEE layer has a buffered char
 .ieee_buffered_char     skip 1  ; the actual buffered char
+.sound_channel          skip 1  ; BBC Micro sound channel (0 for noise)
+.sound_envelope         skip 1  ; BBC Micro envelope (negative for tone)
+.sound_pitch            skip 1  ; BBC Micro pitch value
+.sound_noise            skip 1  ; random noise value
+.sound_cpitch           skip 1  ; Pitch actually being played
+.sound_duration         skip 1  ; number of ticks in the current sound
+.sound_phase            skip 1  ; when processing an envelope, this is the phase we're in
+.sound_ticks            skip 1  ; tick count in the current sound
 
 ; Used internally by the decompressor
 .zx0_offset             skip 2
@@ -353,7 +361,60 @@ basic_start = &03ff
     skip 40
 
 .osword_impl
+    cmp #7
+    beq osword_sound_impl
 .osbyte_impl
+    rts
+
+.osword_sound_impl
+    stx cmdblock+0
+    sty cmdblock+1
+    sei                         ; do this atomically
+
+    ldy #0*2                    ; SOUND parameters are words
+    lda (cmdblock), y           ; we only want the channel
+    and #&0f                    
+
+    ; If there's a sound playing on channel 0, don't preempt it.
+
+    {
+        ldx sound_envelope
+        beq skip
+        ldx sound_channel
+        beq nosound
+        .skip
+    }
+    sta sound_channel
+    iny
+    iny
+    lda (cmdblock), y
+    sta sound_envelope
+    iny
+    iny
+    lda (cmdblock), y
+    sta sound_pitch
+    iny
+    iny
+    lda (cmdblock), y
+    {
+        cmp #&ff
+        beq skip
+        lsr a                       ; 100Hz ticks to 50Hz ticks
+        bne skip                    ; always at least one tick!
+        lda #1
+    .skip
+    }
+    sta sound_duration
+
+    lda #0                          ; clear phase workspace
+    sta sound_phase
+    sta sound_ticks
+    sta sound_noise
+
+    ; The sound will start playing at the next timer interrupt.
+
+.nosound
+    cli
     rts
 
 .oscli_delete
@@ -785,13 +846,99 @@ endmacro
 .irq
     lda PET_PIA1_PB
     
+    ; Do the things the Elite core expects.
+
     lda #30
     sta DL
 
-    lda LASCT
-    beq skip
-    dec LASCT
-.skip
+    {
+        lda LASCT
+        beq skip
+        dec LASCT
+        .skip
+    }
+
+    ; Do sound processing.
+
+    {
+        lda sound_channel
+        bne skip                ; not the noise channel?
+
+    .skip
+    }
+
+    ; If this is an envelope, do envelope processing.
+
+    {
+        lda sound_envelope
+        beq nosound             ; skip if 0 (no sound)
+        bmi solidtone           ; skip if negative (solid tone)
+
+    .nextphase
+        clc
+        asl a
+        asl a
+        adc sound_envelope
+        adc sound_envelope      ; a = sound_envelope*6
+        adc sound_phase
+        tax
+
+        ; Fetch the pitch delta for this phase. If it's 0, go to the next phase.
+
+        {
+            lda envelope1+0, x
+            bne skip
+
+            jsr advance_to_next_phase
+            jmp nextphase       ; process the next phase immediately
+        .skip
+        }
+
+        ; Adjust the pitch.
+
+        clc
+        adc sound_pitch
+        sta sound_pitch
+
+        ; Check for the end of the phase.
+
+        {
+            ldy sound_ticks
+            iny
+            sty sound_ticks
+            tya
+            cmp envelope1+3, x
+            bne skip
+            jsr advance_to_next_phase
+        .skip
+        }
+    
+    .solidtone
+        lda sound_pitch
+        jsr play_sound
+
+        ; Decrement the duration.
+
+        {
+            ldx sound_duration
+            bne skip                ; check for zero duration
+
+            lda #0                  ; duration hit zero, turn the sound off
+            sta PET_VIA_ACR
+            sta sound_envelope
+
+            .skip
+        }
+
+        {
+            beq skip                ; Z from the ldx or the lda above
+            cpx #&ff                ; infinite duration
+            beq skip
+            dec sound_duration
+            .skip
+        }
+    .nosound
+    }
 
     pla
     tay
@@ -799,6 +946,346 @@ endmacro
     tax
     pla
     rti
+
+.advance_to_next_phase
+{
+    ldx #0              ; clear phase tick count
+    stx sound_ticks
+
+    ldx sound_phase
+    inx
+    cpx #3
+    bne skip
+    ldx #0
+.skip
+    rts
+}
+
+; Pokes the VIA to play sound of pitch A.
+.play_sound
+{
+    ; Don't do anything unless the pitch is actually changing,
+    ; or the sound system was previously turned off, or we're playing
+    ; noise.
+
+    ldx sound_channel
+    beq play_noise
+    ldx PET_VIA_ACR
+    beq really_playing
+    cmp sound_cpitch
+    beq skip
+.really_playing
+    sta sound_cpitch
+
+    ; Program the VIA with this pitch.
+
+    jsr compute_via_sound_values
+    sty PET_VIA_SHIFT
+    sta PET_VIA_T2_LO
+
+    lda #16
+    sta PET_VIA_ACR
+    
+    .skip
+    rts
+}
+
+; Pokes the VIA to play noise of pitch A.
+.play_noise
+{
+    ldy sound_noise             ; Check the noise random number.
+    bne noinit
+
+    ; Figure out the 'pitch' of the noise.
+
+    jsr compute_via_sound_values
+    sty sound_noise
+    sta PET_VIA_T2_LO
+
+.noinit
+    ; Circulate the random number.
+
+    tya
+    beq do_eor
+    asl a
+    bcc no_eor
+.do_eor
+    eor #&1d                ; feedback polynomial
+.no_eor
+    sta sound_noise
+    sta PET_VIA_SHIFT
+
+    ; Make sure things are playing.
+
+    lda #16
+    sta PET_VIA_ACR
+    rts
+}
+
+; Given a pitch in A, return the shift register value in Y and the timer value in A.
+
+.compute_via_sound_values
+{
+    ; Compute shift register and timer values.
+
+    {
+        cmp #48                 ; lowest possible sound
+        bcs higher
+        lda #48
+        .higher
+    }
+    {
+        ldy #&0f
+        cmp #96
+        bcc lower
+        ldy #&33
+        cmp #144
+        bcc lower
+        ldy #&55
+        .lower
+    }
+
+    sec
+    sbc #48
+    tax
+    lda sound_table, x
+    rts
+}
+
+;   * Envelope 1 is the sound of our own laser firing
+;
+;   * Envelope 2 is the sound of lasers hitting us, or hyperspace
+;
+;   * Envelope 3 is the first sound in the two-part sound of us dying, or the
+;     second sound in the two-part sound of us hitting or killing an enemy ship
+;
+;   * Envelope 4 is the sound of E.C.M. firing
+;
+; These are defined on the BBC Micro as:
+;
+;             step p1  p2   p3  d1  d2  d3   aa  ar  as ad    la   lr
+; ENVELOPE 1, 1,   0,  111, -8, 4,  1,  8,   8,  -2, 0, -1,   126, 44
+; ENVELOPE 2, 1,   14, -18, -1, 44, 32, 50,  6,  1,  0, -2,   120, 126
+; ENVELOPE 3, 1,   1,  -1,  -3, 17, 32, 128, 1,  0,  0, -1,   1,   1
+; ENVELOPE 4, 1,   4,  -8,  44, 4,  6,  8,   22, 0,  0, -127, 126, 0
+
+.envelope1      equb 0, 111, -8, 2, 1, 4
+.envelope2      equb 14, -18, -1, 22, 16, 25
+.envelope3      equb 1, -1, -3, 8, 16, 64
+.envelope4      equb 4, -8, 44, 2, 3, 4
+
+; BBC Micro pitch to PET sound table. The first entry is pitch 48 (lower
+; pitches can't be played on the PET).
+.sound_table
+    ;    T2       BBC   frequency   shift    real_freq  error   
+    equb 255    ; 48    243.401     15       243.191    -1.5    
+    equb 251    ; 49    246.942     15       247.036    0.66    
+    equb 247    ; 50    250.533     15       251.004    3.25    
+    equb 244    ; 51    254.178     15       254.065    -0.77   
+    equb 240    ; 52    257.875     15       258.264    2.61    
+    equb 237    ; 53    261.626     15       261.506    -0.79   
+    equb 233    ; 54    265.431     15       265.957    3.43    
+    equb 230    ; 55    269.292     15       269.397    0.67    
+    equb 227    ; 56    273.209     15       272.926    -1.79   
+    equb 223    ; 57    277.183     15       277.778    3.71    
+    equb 220    ; 58    281.214     15       281.532    1.95    
+    equb 217    ; 59    285.305     15       285.388    0.51    
+    equb 214    ; 60    289.455     15       289.352    -0.61   
+    equb 211    ; 61    293.665     15       293.427    -1.4    
+    equb 208    ; 62    297.936     15       297.619    -1.84   
+    equb 205    ; 63    302.27      15       301.932    -1.93   
+    equb 202    ; 64    306.666     15       306.373    -1.66   
+    equb 199    ; 65    311.127     15       310.945    -1.01   
+    equb 196    ; 66    315.652     15       315.657    0.02    
+    equb 193    ; 67    320.244     15       320.513    1.45    
+    equb 190    ; 68    324.902     15       325.521    3.3     
+    equb 188    ; 69    329.628     15       328.947    -3.58   
+    equb 185    ; 70    334.422     15       334.225    -1.02   
+    equb 182    ; 71    339.286     15       339.674    1.98    
+    equb 180    ; 72    344.221     15       343.407    -4.1    
+    equb 177    ; 73    349.228     15       349.162    -0.33   
+    equb 174    ; 74    354.308     15       355.114    3.93    
+    equb 172    ; 75    359.461     15       359.195    -1.28   
+    equb 169    ; 76    364.69      15       365.497    3.83    
+    equb 167    ; 77    369.994     15       369.822    -0.8    
+    equb 164    ; 78    375.376     15       376.506    5.2     
+    equb 162    ; 79    380.836     15       381.098    1.19    
+    equb 160    ; 80    386.375     15       385.802    -2.57   
+    equb 157    ; 81    391.995     15       393.082    4.79    
+    equb 155    ; 82    397.697     15       398.089    1.71    
+    equb 153    ; 83    403.482     15       403.226    -1.1    
+    equb 151    ; 84    409.351     15       408.497    -3.61   
+    equb 148    ; 85    415.305     15       416.667    5.67    
+    equb 146    ; 86    421.345     15       422.297    3.91    
+    equb 144    ; 87    427.474     15       428.082    2.46    
+    equb 142    ; 88    433.692     15       434.028    1.34    
+    equb 140    ; 89    440.0       15       440.141    0.55    
+    equb 138    ; 90    446.4       15       446.429    0.11    
+    equb 136    ; 91    452.893     15       452.899    0.02    
+    equb 134    ; 92    459.48      15       459.559    0.3     
+    equb 132    ; 93    466.164     15       466.418    0.94    
+    equb 130    ; 94    472.944     15       473.485    1.98    
+    equb 128    ; 95    479.823     15       480.769    3.41    
+    equb 255    ; 96    486.803     51       486.381    -1.5    
+    equb 251    ; 97    493.883     51       494.071    0.66    
+    equb 247    ; 98    501.067     51       502.008    3.25    
+    equb 244    ; 99    508.355     51       508.13     -0.77   
+    equb 240    ; 100   515.749     51       516.529    2.61    
+    equb 237    ; 101   523.251     51       523.013    -0.79   
+    equb 233    ; 102   530.862     51       531.915    3.43    
+    equb 230    ; 103   538.584     51       538.793    0.67    
+    equb 227    ; 104   546.417     51       545.852    -1.79   
+    equb 223    ; 105   554.365     51       555.556    3.71    
+    equb 220    ; 106   562.429     51       563.063    1.95    
+    equb 217    ; 107   570.609     51       570.776    0.51    
+    equb 214    ; 108   578.909     51       578.704    -0.61   
+    equb 211    ; 109   587.33      51       586.854    -1.4    
+    equb 208    ; 110   595.872     51       595.238    -1.84   
+    equb 205    ; 111   604.54      51       603.865    -1.93   
+    equb 202    ; 112   613.333     51       612.745    -1.66   
+    equb 199    ; 113   622.254     51       621.891    -1.01   
+    equb 196    ; 114   631.305     51       631.313    0.02    
+    equb 193    ; 115   640.487     51       641.026    1.45    
+    equb 190    ; 116   649.804     51       651.042    3.3     
+    equb 188    ; 117   659.255     51       657.895    -3.58   
+    equb 185    ; 118   668.844     51       668.449    -1.02   
+    equb 182    ; 119   678.573     51       679.348    1.98    
+    equb 180    ; 120   688.443     51       686.813    -4.1    
+    equb 177    ; 121   698.456     51       698.324    -0.33   
+    equb 174    ; 122   708.616     51       710.227    3.93    
+    equb 172    ; 123   718.923     51       718.391    -1.28   
+    equb 169    ; 124   729.38      51       730.994    3.83    
+    equb 167    ; 125   739.989     51       739.645    -0.8    
+    equb 164    ; 126   750.752     51       753.012    5.2     
+    equb 162    ; 127   761.672     51       762.195    1.19    
+    equb 160    ; 128   772.751     51       771.605    -2.57   
+    equb 157    ; 129   783.991     51       786.164    4.79    
+    equb 155    ; 130   795.394     51       796.178    1.71    
+    equb 153    ; 131   806.964     51       806.452    -1.1    
+    equb 151    ; 132   818.701     51       816.993    -3.61   
+    equb 148    ; 133   830.609     51       833.333    5.67    
+    equb 146    ; 134   842.691     51       844.595    3.91    
+    equb 144    ; 135   854.948     51       856.164    2.46    
+    equb 142    ; 136   867.384     51       868.056    1.34    
+    equb 140    ; 137   880.0       51       880.282    0.55    
+    equb 138    ; 138   892.8       51       892.857    0.11    
+    equb 136    ; 139   905.786     51       905.797    0.02    
+    equb 134    ; 140   918.961     51       919.118    0.3     
+    equb 132    ; 141   932.328     51       932.836    0.94    
+    equb 130    ; 142   945.889     51       946.97     1.98    
+    equb 128    ; 143   959.647     51       961.538    3.41    
+    equb 255    ; 144   973.605     85       972.763    -1.5    
+    equb 251    ; 145   987.767     85       988.142    0.66    
+    equb 247    ; 146   1002.134    85      1004.016    3.25    
+    equb 244    ; 147   1016.71     85      1016.260    -0.77   
+    equb 240    ; 148   1031.499    85      1033.058    2.61    
+    equb 237    ; 149   1046.502    85      1046.025    -0.79   
+    equb 233    ; 150   1061.724    85      1063.830    3.43    
+    equb 230    ; 151   1077.167    85      1077.586    0.67    
+    equb 227    ; 152   1092.835    85      1091.703    -1.79   
+    equb 223    ; 153   1108.731    85      1111.111    3.71    
+    equb 220    ; 154   1124.857    85      1126.126    1.95    
+    equb 217    ; 155   1141.219    85      1141.553    0.51    
+    equb 214    ; 156   1157.818    85      1157.407    -0.61   
+    equb 211    ; 157   1174.659    85      1173.709    -1.4    
+    equb 208    ; 158   1191.745    85      1190.476    -1.84   
+    equb 205    ; 159   1209.079    85      1207.729    -1.93   
+    equb 202    ; 160   1226.666    85      1225.490    -1.66   
+    equb 199    ; 161   1244.508    85      1243.781    -1.01   
+    equb 196    ; 162   1262.61     85      1262.626    0.02    
+    equb 193    ; 163   1280.975    85      1282.051    1.45    
+    equb 190    ; 164   1299.607    85      1302.083    3.3     
+    equb 188    ; 165   1318.51     85      1315.789    -3.58   
+    equb 185    ; 166   1337.688    85      1336.898    -1.02   
+    equb 182    ; 167   1357.146    85      1358.696    1.98    
+    equb 180    ; 168   1376.886    85      1373.626    -4.1    
+    equb 177    ; 169   1396.913    85      1396.648    -0.33   
+    equb 174    ; 170   1417.231    85      1420.455    3.93    
+    equb 172    ; 171   1437.846    85      1436.782    -1.28   
+    equb 169    ; 172   1458.76     85      1461.988    3.83    
+    equb 167    ; 173   1479.978    85      1479.290    -0.8    
+    equb 164    ; 174   1501.504    85      1506.024    5.2     
+    equb 162    ; 175   1523.344    85      1524.390    1.19    
+    equb 160    ; 176   1545.502    85      1543.210    -2.57   
+    equb 157    ; 177   1567.982    85      1572.327    4.79    
+    equb 155    ; 178   1590.789    85      1592.357    1.71    
+    equb 153    ; 179   1613.927    85      1612.903    -1.1    
+    equb 151    ; 180   1637.402    85      1633.987    -3.61   
+    equb 148    ; 181   1661.219    85      1666.667    5.67    
+    equb 146    ; 182   1685.382    85      1689.189    3.91    
+    equb 144    ; 183   1709.896    85      1712.329    2.46    
+    equb 142    ; 184   1734.767    85      1736.111    1.34    
+    equb 140    ; 185   1760.0      85      1760.563    0.55    
+    equb 138    ; 186   1785.6      85      1785.714    0.11    
+    equb 136    ; 187   1811.572    85      1811.594    0.02    
+    equb 134    ; 188   1837.922    85      1838.235    0.3     
+    equb 132    ; 189   1864.655    85      1865.672    0.94    
+    equb 130    ; 190   1891.777    85      1893.939    1.98    
+    equb 128    ; 191   1919.294    85      1923.077    3.41    
+    equb 126    ; 192   1947.21     85      1953.125    5.25    
+    equb 125    ; 193   1975.533    85      1968.504    -6.17   
+    equb 123    ; 194   2004.268    85      2000.000    -3.69   
+    equb 121    ; 195   2033.421    85      2032.520    -0.77   
+    equb 119    ; 196   2062.998    85      2066.116    2.61    
+    equb 117    ; 197   2093.005    85      2100.840    6.47    
+    equb 116    ; 198   2123.448    85      2118.644    -3.92   
+    equb 114    ; 199   2154.334    85      2155.172    0.67    
+    equb 112    ; 200   2185.67     85      2192.982    5.78    
+    equb 111    ; 201   2217.461    85      2212.389    -3.96   
+    equb 109    ; 202   2249.715    85      2252.252    1.95    
+    equb 108    ; 203   2282.438    85      2272.727    -7.38   
+    equb 106    ; 204   2315.636    85      2314.815    -0.61   
+    equb 104    ; 205   2349.318    85      2358.491    6.75    
+    equb 103    ; 206   2383.49     85      2380.952    -1.84   
+    equb 101    ; 207   2418.158    85      2427.184    6.45    
+    equb 100    ; 208   2453.331    85      2450.980    -1.66   
+    equb 98     ; 209   2489.016    85      2500.000    7.62    
+    equb 97     ; 210   2525.219    85      2525.253    0.02    
+    equb 96     ; 211   2561.95     85      2551.020    -7.4    
+    equb 94     ; 212   2599.214    85      2604.167    3.3     
+    equb 93     ; 213   2637.02     85      2631.579    -3.58   
+    equb 91     ; 214   2675.377    85      2688.172    8.26    
+    equb 90     ; 215   2714.291    85      2717.391    1.98    
+    equb 89     ; 216   2753.771    85      2747.253    -4.1    
+    equb 87     ; 217   2793.826    85      2808.989    9.37    
+    equb 86     ; 218   2834.463    85      2840.909    3.93    
+    equb 85     ; 219   2875.691    85      2873.563    -1.28   
+    equb 84     ; 220   2917.519    85      2906.977    -6.27   
+    equb 82     ; 221   2959.955    85      2976.190    9.47    
+    equb 81     ; 222   3003.009    85      3012.048    5.2     
+    equb 80     ; 223   3046.689    85      3048.780    1.19    
+    equb 79     ; 224   3091.004    85      3086.420    -2.57   
+    equb 78     ; 225   3135.963    85      3125.000    -6.06   
+    equb 77     ; 226   3181.577    85      3164.557    -9.29   
+    equb 75     ; 227   3227.854    85      3246.753    10.11   
+    equb 74     ; 228   3274.804    85      3289.474    7.74    
+    equb 73     ; 229   3322.438    85      3333.333    5.67    
+    equb 72     ; 230   3370.764    85      3378.378    3.91    
+    equb 71     ; 231   3419.792    85      3424.658    2.46    
+    equb 70     ; 232   3469.534    85      3472.222    1.34    
+    equb 69     ; 233   3520.0      85      3521.127    0.55    
+    equb 68     ; 234   3571.2      85      3571.429    0.11    
+    equb 67     ; 235   3623.144    85      3623.188    0.02    
+    equb 66     ; 236   3675.844    85      3676.471    0.3     
+    equb 65     ; 237   3729.31     85      3731.343    0.94    
+    equb 64     ; 238   3783.554    85      3787.879    1.98    
+    equb 63     ; 239   3838.587    85      3846.154    3.41    
+    equb 62     ; 240   3894.421    85      3906.250    5.25    
+    equb 61     ; 241   3951.066    85      3968.254    7.51    
+    equb 60     ; 242   4008.536    85      4032.258    10.22   
+    equb 59     ; 243   4066.841    85      4098.361    13.37   
+    equb 59     ; 244   4125.995    85      4098.361    -11.63  
+    equb 58     ; 245   4186.009    85      4166.667    -8.02   
+    equb 57     ; 246   4246.896    85      4237.288    -3.92   
+    equb 56     ; 247   4308.668    85      4310.345    0.67    
+    equb 55     ; 248   4371.339    85      4385.965    5.78    
+    equb 54     ; 249   4434.922    85      4464.286    11.42   
+    equb 54     ; 250   4499.43     85      4464.286    -13.58  
+    equb 53     ; 251   4564.875    85      4545.455    -7.38   
+    equb 52     ; 252   4631.273    85      4629.630    -0.61   
+    equb 51     ; 253   4698.636    85      4716.981    6.75    
+    equb 50     ; 254   4766.98     85      4807.692    14.72   
+    equb 50     ; 255   4836.317    85      4807.692    -10.28  
 
 ; ==============================================================================
 ; ZX0 6502 Direct Disk-Streaming Decompressor (Forward Layout)

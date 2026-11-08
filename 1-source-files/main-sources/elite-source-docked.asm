@@ -11174,12 +11174,6 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
  JSR TT66               \ Clear the top part of the screen, draw a white border,
                         \ and set the current view type in QQ11 to 1
 
-                        \ --- Mod: Code added for Teletext Elite: ------------->
-
-\ JSR SetMode7Graphics   \ Set all screen rows to white graphics
-
-                        \ --- End of added code ------------------------------->
-
  LDA #64                \ Set the main loop counter to 64, so the ship rotates
  STA MCNT               \ for 64 iterations through MVEIT
 
@@ -11243,34 +11237,14 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
  INC INWK+7             \ Increment z_hi, to keep the ship at the same distance
                         \ as we just incremented z_lo past 255
 
-                        \ --- Mod: Code added for Teletext Elite: ------------->
-
- LDA #134               \ Set A to the "cyan text" control code
-
- FOR n, 10, 24          \ Set rows 10 to 24 to white text, for the mission
-  STA MODE7_VRAM + n*40 \ briefing
- NEXT
-
-                        \ --- End of added code ------------------------------->
-
  LDA #10                \ Set A = 10 so the call to BRP prints extended token 10
                         \ (the briefing for mission 1 where we find out all
                         \ about the stolen Constrictor)
 
-                        \ --- Mod: Code removed for Teletext Elite: ----------->
-
-\BNE BRPS               \ Jump to BRP via BRPS to print the extended token in A
-\                       \ and show the Status Mode screen, returning from the
-\                       \ subroutine using a tail call (this BNE is effectively
-\                       \ a JMP as A is never zero)
-
-                        \ --- And replaced by: -------------------------------->
-
- JMP BRP                \ Jump to BRP to print the extended token in A and show
-                        \ the Status Mode screen, returning from the subroutine
-                        \ using a tail call
-
-                        \ --- End of replacement ------------------------------>
+BNE BRPS               \ Jump to BRP via BRPS to print the extended token in A
+                       \ and show the Status Mode screen, returning from the
+                       \ subroutine using a tail call (this BNE is effectively
+                       \ a JMP as A is never zero)
 
 \ ******************************************************************************
 \
@@ -11326,16 +11300,6 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 
  LDA #1                 \ Clear the top part of the screen, draw a white border,
  JSR TT66               \ and set the current view type in QQ11 to 1
-
-                        \ --- Mod: Code added for Teletext Elite: ------------->
-
- LDA #151               \ Set A to the "white graphics" control code
-
- FOR n, 1, 9
-  STA MODE7_VRAM + n*40 \ Set rows 1 to 9 to white graphics
- NEXT
-
-                        \ --- End of added code ------------------------------->
 
  JSR LL9                \ Draw the ship on screen to redisplay it
 
@@ -11475,36 +11439,36 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.SIGHT
-
- LDY VIEW               \ Fetch the laser power for our new view
- LDA LASER,Y
-
- BEQ BOL1-1             \ If it is zero (i.e. there is no laser fitted to this
-                        \ view), jump to BOL1-1 to return from the subroutine
-                        \ (as BOL1-1 contains &60, which is the opcode for an
-                        \ RTS)
-
- LDA #128               \ Set QQ19 to the x-coordinate of the centre of the
- STA QQ19               \ screen
-
- LDA #Y-24              \ Set QQ19+1 to the y-coordinate of the centre of the
- STA QQ19+1             \ screen, minus 24 (because TT15 will add 24 to the
-                        \ coordinate when it draws the crosshairs)
-
- LDA #20                \ Set QQ19+2 to size 20 for the crosshairs size
- STA QQ19+2
-
- JSR TT15               \ Call TT15 to draw crosshairs of size 20 just to the
-                        \ left of the middle of the screen
-
- LDA #10                \ Set QQ19+2 to size 10 for the crosshairs size
- STA QQ19+2
-
- JMP TT15               \ Call TT15 to draw crosshairs of size 10 at the same
-                        \ location, which will remove the centre part from the
-                        \ laser crosshairs, leaving a gap in the middle, and
-                        \ return from the subroutine using a tail call
+\.SIGHT
+\
+\ LDY VIEW               \ Fetch the laser power for our new view
+\ LDA LASER,Y
+\
+\ BEQ BOL1-1             \ If it is zero (i.e. there is no laser fitted to this
+\                        \ view), jump to BOL1-1 to return from the subroutine
+\                        \ (as BOL1-1 contains &60, which is the opcode for an
+\                        \ RTS)
+\
+\ LDA #128               \ Set QQ19 to the x-coordinate of the centre of the
+\ STA QQ19               \ screen
+\
+\ LDA #Y-24              \ Set QQ19+1 to the y-coordinate of the centre of the
+\ STA QQ19+1             \ screen, minus 24 (because TT15 will add 24 to the
+\                        \ coordinate when it draws the crosshairs)
+\
+\ LDA #20                \ Set QQ19+2 to size 20 for the crosshairs size
+\ STA QQ19+2
+\
+\ JSR TT15               \ Call TT15 to draw crosshairs of size 20 just to the
+\                        \ left of the middle of the screen
+\
+\ LDA #10                \ Set QQ19+2 to size 10 for the crosshairs size
+\ STA QQ19+2
+\
+\ JMP TT15               \ Call TT15 to draw crosshairs of size 10 at the same
+\                        \ location, which will remove the centre part from the
+\                        \ laser crosshairs, leaving a gap in the middle, and
+\                        \ return from the subroutine using a tail call
 
 \ ******************************************************************************
 \
@@ -21440,11 +21404,19 @@ ENDIF
  JSR TITLE              \ (Y/N)?{sentence case}{cr}{cr}"), returning with the
                         \ internal number of the key pressed in A
 
+; The following code tries to check for the business keyboard. The only keys
+; accepted here are Y or N. By default we use the graphics keyboard matrix.
+; If, however, the user has a business keyboard, then pressing a Y will actually
+; produce a J. So, we detect this and swap keymaps. Sadly the same trick won't
+; work with N because both keyboards have this key in the same location. In that
+; case we go to the title screen where the user has to press SPACE, where we
+; do the same trick again.
+
 {
 .br1loop
  cmp #&45               \ The user pressed J... or Y on the business keyboard.
                         \ Assume the latter.
- bne not_z
+ bne br1continue
  jsr switchToBusinessKeyboard
  lda #&44
  bne br1continue           \ always taken
@@ -21453,16 +21425,10 @@ ENDIF
  jsr TLL2
  jmp br1loop
 
- .not_z
- cmp #&35               \ The user pressed U, which is N on the business keyboard.
- bne br1continue
- jsr switchToBusinessKeyboard
- lda #&55
-
  .br1continue
- CMP #&55               \ Did we press "Y"? If not, jump to QU5, otherwise
+ CMP #&55               \ Did we press "N"? If not, jump to QU5, otherwise
  BEQ QU5                \ continue on to load a new commander
- cmp #&44
+ cmp #&44               \ Did we press "Y"?
  bne br1again
 
 .loadNewCommander
@@ -21500,6 +21466,19 @@ ENDIF
  JSR TITLE              \ {cr}"), returning with the internal number of the key
                         \ pressed in A
 
+{
+.spaceloop
+    cmp #&62            \ space?
+    beq exitloop
+    cmp #&58            \ ']'? That's SPACE on the business keyboard.
+    bne again
+    jsr switchToBusinessKeyboard
+    jmp exitloop
+.again
+    jsr TLL2
+    bne spaceloop       \ always taken
+.exitloop
+}
  JSR ping               \ Set the target system coordinates (QQ9, QQ10) to the
                         \ current system coordinates (QQ0, QQ1) we just loaded
 
@@ -23395,15 +23374,15 @@ ENDIF
 \
 \ ******************************************************************************
 
-.EXNO3
-
- LDA #16                \ Call the NOISE routine with A = 16 to make the first
- JSR NOISE              \ death sound
-
- LDA #24                \ Call the NOISE routine with A = 24 to make the second
- BNE NOISE              \ death sound and return from the subroutine using a
-                        \ tail call (this BNE is effectively a JMP as A will
-                        \ never be zero)
+\.EXNO3
+\
+\ LDA #16                \ Call the NOISE routine with A = 16 to make the first
+\ JSR NOISE              \ death sound
+\
+\ LDA #24                \ Call the NOISE routine with A = 24 to make the second
+\ BNE NOISE              \ death sound and return from the subroutine using a
+\                        \ tail call (this BNE is effectively a JMP as A will
+\                        \ never be zero)
 
 \ ******************************************************************************
 \
@@ -23437,21 +23416,21 @@ ENDIF
 \
 \ ******************************************************************************
 
-.EXNO2
-
- INC TALLY              \ Increment the low byte of the kill count in TALLY
-
- BNE EXNO-2             \ If there is no carry, jump to the LDX #7 below (at
-                        \ EXNO-2)
-
- INC TALLY+1            \ Increment the high byte of the kill count in TALLY
-
- LDA #101               \ The kill total is a multiple of 256, so it's time
- JSR MESS               \ for a pat on the back, so print recursive token 101
-                        \ ("RIGHT ON COMMANDER!") as an in-flight message
-
- LDX #7                 \ Set X = 7 and fall through into EXNO to make the
-                        \ sound of a ship exploding
+\.EXNO2
+\
+\ INC TALLY              \ Increment the low byte of the kill count in TALLY
+\
+\ BNE EXNO-2             \ If there is no carry, jump to the LDX #7 below (at
+\                        \ EXNO-2)
+\
+\ INC TALLY+1            \ Increment the high byte of the kill count in TALLY
+\
+\ LDA #101               \ The kill total is a multiple of 256, so it's time
+\ JSR MESS               \ for a pat on the back, so print recursive token 101
+\                        \ ("RIGHT ON COMMANDER!") as an in-flight message
+\
+\ LDX #7                 \ Set X = 7 and fall through into EXNO to make the
+\                        \ sound of a ship exploding
 
 \ ******************************************************************************
 \
@@ -23492,46 +23471,46 @@ ENDIF
 \
 \ ******************************************************************************
 
-.EXNO
-
- STX T                  \ Store the distance in T
-
- LDA #24                \ Set A = 24 to denote the sound of us making a hit or
- JSR NOS1               \ kill (part 1 of the explosion), and call NOS1 to set
-                        \ up the sound block in XX16
-
- LDA INWK+7             \ Fetch z_hi, the distance of the ship being hit in
- LSR A                  \ terms of the z-axis (in and out of the screen), and
- LSR A                  \ divide by 4. If z_hi has either bit 6 or 7 set then
-                        \ that ship is too far away to be shown on the scanner
-                        \ (as per the SCAN routine), so we know the maximum
-                        \ z_hi at this point is %00111111, and shifting z_hi
-                        \ to the right twice gives us a maximum value of
-                        \ %00001111
-
- AND T                  \ This reduces A to a maximum of X; X can be either
-                        \ 7 = %0111 or 15 = %1111, so AND'ing with 15 will
-                        \ not affect A, while AND'ing with 7 will clear bit
-                        \ 3, reducing the maximum value in A to 7
-
- ORA #%11110001         \ The SOUND statement's amplitude ranges from 0 (for no
-                        \ sound) to -15 (full volume), so we can set bits 0 and
-                        \ 4-7 in A, and keep bits 1-3 from the above to get
-                        \ a value between -15 (%11110001) and -1 (%11111111),
-                        \ with lower values of z_hi and argument X leading
-                        \ to a more negative, or quieter number (so the closer
-                        \ the ship, i.e. the smaller the value of X, the louder
-                        \ the sound)
-
- STA XX16+2             \ The amplitude byte of the sound block in XX16 is in
-                        \ byte #3 (where it's the low byte of the amplitude), so
-                        \ this sets the amplitude to the value in A
-
- JSR NO3                \ Make the sound from our updated sound block in XX16
-
- LDA #16                \ Set A = 16 to denote we have made a hit or kill
-                        \ (part 2 of the explosion), and fall through into NOISE
-                        \ to make the sound
+\.EXNO
+\
+\ STX T                  \ Store the distance in T
+\
+\ LDA #24                \ Set A = 24 to denote the sound of us making a hit or
+\ JSR NOS1               \ kill (part 1 of the explosion), and call NOS1 to set
+\                        \ up the sound block in XX16
+\
+\ LDA INWK+7             \ Fetch z_hi, the distance of the ship being hit in
+\ LSR A                  \ terms of the z-axis (in and out of the screen), and
+\ LSR A                  \ divide by 4. If z_hi has either bit 6 or 7 set then
+\                        \ that ship is too far away to be shown on the scanner
+\                        \ (as per the SCAN routine), so we know the maximum
+\                        \ z_hi at this point is %00111111, and shifting z_hi
+\                        \ to the right twice gives us a maximum value of
+\                        \ %00001111
+\
+\ AND T                  \ This reduces A to a maximum of X; X can be either
+\                        \ 7 = %0111 or 15 = %1111, so AND'ing with 15 will
+\                        \ not affect A, while AND'ing with 7 will clear bit
+\                        \ 3, reducing the maximum value in A to 7
+\
+\ ORA #%11110001         \ The SOUND statement's amplitude ranges from 0 (for no
+\                        \ sound) to -15 (full volume), so we can set bits 0 and
+\                        \ 4-7 in A, and keep bits 1-3 from the above to get
+\                        \ a value between -15 (%11110001) and -1 (%11111111),
+\                        \ with lower values of z_hi and argument X leading
+\                        \ to a more negative, or quieter number (so the closer
+\                        \ the ship, i.e. the smaller the value of X, the louder
+\                        \ the sound)
+\
+\ STA XX16+2             \ The amplitude byte of the sound block in XX16 is in
+\                        \ byte #3 (where it's the low byte of the amplitude), so
+\                        \ this sets the amplitude to the value in A
+\
+\ JSR NO3                \ Make the sound from our updated sound block in XX16
+\
+\ LDA #16                \ Set A = 16 to denote we have made a hit or kill
+\                        \ (part 2 of the explosion), and fall through into NOISE
+\                        \ to make the sound
 
 \ ******************************************************************************
 \
