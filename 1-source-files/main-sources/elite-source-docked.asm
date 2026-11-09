@@ -2090,23 +2090,23 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.INBAY
-
- LDX #0                 \ This code is never run, but it takes up the same
- LDY #0                 \ number of bytes as the INBAY routine in the flight
- JSR &8888              \ code, so if the flight code *LOADs the docked code in
- JMP SCRAM              \ its own version of the INBAY routine, then execution
-                        \ will fall through into the DOBEGIN routine below once
-                        \ the docked binary has loaded
-                        \
-                        \ This enables the docked code to choose whether to load
-                        \ the docked code and jump to DOBEGIN to restart the
-                        \ game (in which case the flight code simply *LOADs the
-                        \ docked code), or whether to dock with the space
-                        \ station and continue the game (in which case the
-                        \ flight code *RUNs the docked code, which has an
-                        \ execution address of S% at the start of the docked
-                        \ code, which contains a JMP DOENTRY instruction)
+\.INBAY
+\
+\ LDX #0                 \ This code is never run, but it takes up the same
+\ LDY #0                 \ number of bytes as the INBAY routine in the flight
+\ JSR &8888              \ code, so if the flight code *LOADs the docked code in
+\ JMP SCRAM              \ its own version of the INBAY routine, then execution
+\                        \ will fall through into the DOBEGIN routine below once
+\                        \ the docked binary has loaded
+\                        \
+\                        \ This enables the docked code to choose whether to load
+\                        \ the docked code and jump to DOBEGIN to restart the
+\                        \ game (in which case the flight code simply *LOADs the
+\                        \ docked code), or whether to dock with the space
+\                        \ station and continue the game (in which case the
+\                        \ flight code *RUNs the docked code, which has an
+\                        \ execution address of S% at the start of the docked
+\                        \ code, which contains a JMP DOENTRY instruction)
 
 \ ******************************************************************************
 \
@@ -3719,55 +3719,55 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
- AND #%10000000         \ Clear bits 0-6 of A
+\ AND #%10000000         \ Clear bits 0-6 of A
+\
+\.MVT1
+\
+\ ASL A                  \ Set the C flag to the sign bit of the delta, leaving
+\                        \ delta_hi << 1 in A
+\
+\ STA S                  \ Set S = delta_hi << 1
+\                        \
+\                        \ This also clears bit 0 of S
+\
+\ LDA #0                 \ Set T = just the sign bit of delta (in bit 7)
+\ ROR A
+\ STA T
+\
+\ LSR S                  \ Set S = delta_hi >> 1
+\                        \       = |delta_hi|
+\                        \
+\                        \ This also clear the C flag, as we know that bit 0 of
+\                        \ S was clear before the LSR
+\
+\ EOR INWK+2,X           \ If T EOR x_sign has bit 7 set, then x_sign and delta
+\ BMI MV10               \ have different signs, so jump to MV10
+\
+\                        \ At this point, we know x_sign and delta have the same
+\                        \ sign, that sign is in T, and S contains |delta_hi|,
+\                        \ so now we want to do:
+\                        \
+\                        \   (x_sign x_hi x_lo) = (x_sign x_hi x_lo) + (S R)
+\                        \
+\                        \ and then set the sign of the result to the same sign
+\                        \ as x_sign and delta
+\
+\ LDA R                  \ First we add the low bytes, so:
+\ ADC INWK,X             \
+\ STA INWK,X             \   x_lo = x_lo + R
+\
+\ LDA S                  \ Then we add the high bytes:
+\ ADC INWK+1,X           \
+\ STA INWK+1,X           \   x_hi = x_hi + S
+\
+\ LDA INWK+2,X           \ And finally we add any carry into x_sign, and if the
+\ ADC #0                 \ sign of x_sign and delta in T is negative, make sure
+\ ORA T                  \ the result is negative (by OR'ing with T)
+\ STA INWK+2,X
+\
+\ RTS                    \ Return from the subroutine
 
-.MVT1
-
- ASL A                  \ Set the C flag to the sign bit of the delta, leaving
-                        \ delta_hi << 1 in A
-
- STA S                  \ Set S = delta_hi << 1
-                        \
-                        \ This also clears bit 0 of S
-
- LDA #0                 \ Set T = just the sign bit of delta (in bit 7)
- ROR A
- STA T
-
- LSR S                  \ Set S = delta_hi >> 1
-                        \       = |delta_hi|
-                        \
-                        \ This also clear the C flag, as we know that bit 0 of
-                        \ S was clear before the LSR
-
- EOR INWK+2,X           \ If T EOR x_sign has bit 7 set, then x_sign and delta
- BMI MV10               \ have different signs, so jump to MV10
-
-                        \ At this point, we know x_sign and delta have the same
-                        \ sign, that sign is in T, and S contains |delta_hi|,
-                        \ so now we want to do:
-                        \
-                        \   (x_sign x_hi x_lo) = (x_sign x_hi x_lo) + (S R)
-                        \
-                        \ and then set the sign of the result to the same sign
-                        \ as x_sign and delta
-
- LDA R                  \ First we add the low bytes, so:
- ADC INWK,X             \
- STA INWK,X             \   x_lo = x_lo + R
-
- LDA S                  \ Then we add the high bytes:
- ADC INWK+1,X           \
- STA INWK+1,X           \   x_hi = x_hi + S
-
- LDA INWK+2,X           \ And finally we add any carry into x_sign, and if the
- ADC #0                 \ sign of x_sign and delta in T is negative, make sure
- ORA T                  \ the result is negative (by OR'ing with T)
- STA INWK+2,X
-
- RTS                    \ Return from the subroutine
-
-.MV10
+\.MV10
 
                         \ If we get here, we know x_sign and delta have
                         \ different signs, with delta's sign in T, and
@@ -3778,23 +3778,23 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
                         \ and then set the sign of the result according to
                         \ the signs of x_sign and delta
 
- LDA INWK,X             \ First we subtract the low bytes, so:
- SEC                    \
- SBC R                  \   x_lo = x_lo - R
- STA INWK,X
+\ LDA INWK,X             \ First we subtract the low bytes, so:
+\ SEC                    \
+\ SBC R                  \   x_lo = x_lo - R
+\ STA INWK,X
 
- LDA INWK+1,X           \ Then we subtract the high bytes:
- SBC S                  \
- STA INWK+1,X           \   x_hi = x_hi - S
+\ LDA INWK+1,X           \ Then we subtract the high bytes:
+\ SBC S                  \
+\ STA INWK+1,X           \   x_hi = x_hi - S
 
- LDA INWK+2,X           \ And finally we subtract any borrow from bits 0-6 of
- AND #%01111111         \ x_sign, and give the result the opposite sign bit to T
- SBC #0                 \ (i.e. give it the sign of the original x_sign)
- ORA #%10000000
- EOR T
- STA INWK+2,X
+\ LDA INWK+2,X           \ And finally we subtract any borrow from bits 0-6 of
+\ AND #%01111111         \ x_sign, and give the result the opposite sign bit to T
+\ SBC #0                 \ (i.e. give it the sign of the original x_sign)
+\ ORA #%10000000
+\ EOR T
+\ STA INWK+2,X
 
- BCS MV11               \ If the C flag is set by the above SBC, then our sum
+\ BCS MV11               \ If the C flag is set by the above SBC, then our sum
                         \ above didn't underflow and is correct - to put it
                         \ another way, (x_sign x_hi x_lo) >= (S R) so the result
                         \ should indeed have the same sign as x_sign, so jump to
@@ -3810,25 +3810,25 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
                         \ (S R), the delta, as that's the dominant figure in the
                         \ sum
 
- LDA #1                 \ First we subtract the low bytes, so:
- SBC INWK,X             \
- STA INWK,X             \   x_lo = 1 - x_lo
+\ LDA #1                 \ First we subtract the low bytes, so:
+\ SBC INWK,X             \
+\ STA INWK,X             \   x_lo = 1 - x_lo
 
- LDA #0                 \ Then we subtract the high bytes:
- SBC INWK+1,X           \
- STA INWK+1,X           \   x_hi = 0 - x_hi
+\ LDA #0                 \ Then we subtract the high bytes:
+\ SBC INWK+1,X           \
+\ STA INWK+1,X           \   x_hi = 0 - x_hi
 
- LDA #0                 \ And then we subtract the sign bytes:
- SBC INWK+2,X           \
+\ LDA #0                 \ And then we subtract the sign bytes:
+\ SBC INWK+2,X           \
                         \   x_sign = 0 - x_sign
 
- AND #%01111111         \ Finally, we set the sign bit to the sign in T, the
- ORA T                  \ sign of the original delta, as the delta is the
- STA INWK+2,X           \ dominant figure in the sum
+\ AND #%01111111         \ Finally, we set the sign bit to the sign in T, the
+\ ORA T                  \ sign of the original delta, as the delta is the
+\ STA INWK+2,X           \ dominant figure in the sum
 
-.MV11
+\.MV11
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -3867,59 +3867,59 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.MVT3
+\.MVT3
 
- LDA K+3                \ Set S = K+3
- STA S
+\ LDA K+3                \ Set S = K+3
+\ STA S
 
- AND #%10000000         \ Set T = sign bit of K(3 2 1)
- STA T
+\ AND #%10000000         \ Set T = sign bit of K(3 2 1)
+\ STA T
 
- EOR INWK+2,X           \ If x_sign has a different sign to K(3 2 1), jump to
- BMI MV13               \ MV13 to process the addition as a subtraction
+\ EOR INWK+2,X           \ If x_sign has a different sign to K(3 2 1), jump to
+\ BMI MV13               \ MV13 to process the addition as a subtraction
 
- LDA K+1                \ Set K(3 2 1) = K(3 2 1) + (x_sign x_hi x_lo)
- CLC                    \ starting with the low bytes
- ADC INWK,X
- STA K+1
+\ LDA K+1                \ Set K(3 2 1) = K(3 2 1) + (x_sign x_hi x_lo)
+\ CLC                    \ starting with the low bytes
+\ ADC INWK,X
+\ STA K+1
 
- LDA K+2                \ Then the middle bytes
- ADC INWK+1,X
- STA K+2
+\ LDA K+2                \ Then the middle bytes
+\ ADC INWK+1,X
+\ STA K+2
 
- LDA K+3                \ And finally the high bytes
- ADC INWK+2,X
+\ LDA K+3                \ And finally the high bytes
+\ ADC INWK+2,X
 
- AND #%01111111         \ Setting the sign bit of K+3 to T, the original sign
- ORA T                  \ of K(3 2 1)
- STA K+3
+\ AND #%01111111         \ Setting the sign bit of K+3 to T, the original sign
+\ ORA T                  \ of K(3 2 1)
+\ STA K+3
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
-.MV13
+\.MV13
 
- LDA S                  \ Set S = |K+3| (i.e. K+3 with the sign bit cleared)
- AND #%01111111
- STA S
+\ LDA S                  \ Set S = |K+3| (i.e. K+3 with the sign bit cleared)
+\ AND #%01111111
+\ STA S
 
- LDA INWK,X             \ Set K(3 2 1) = (x_sign x_hi x_lo) - K(3 2 1)
- SEC                    \ starting with the low bytes
- SBC K+1
- STA K+1
+\ LDA INWK,X             \ Set K(3 2 1) = (x_sign x_hi x_lo) - K(3 2 1)
+\ SEC                    \ starting with the low bytes
+\ SBC K+1
+\ STA K+1
 
- LDA INWK+1,X           \ Then the middle bytes
- SBC K+2
- STA K+2
+\ LDA INWK+1,X           \ Then the middle bytes
+\ SBC K+2
+\ STA K+2
 
- LDA INWK+2,X           \ And finally the high bytes, doing A = |x_sign| - |K+3|
- AND #%01111111         \ and setting the C flag for testing below
- SBC S
+\ LDA INWK+2,X           \ And finally the high bytes, doing A = |x_sign| - |K+3|
+\ AND #%01111111         \ and setting the C flag for testing below
+\ SBC S
 
- ORA #%10000000         \ Set the sign bit of K+3 to the opposite sign of T,
- EOR T                  \ i.e. the opposite sign to the original K(3 2 1)
- STA K+3
+\ ORA #%10000000         \ Set the sign bit of K+3 to the opposite sign of T,
+\ EOR T                  \ i.e. the opposite sign to the original K(3 2 1)
+\ STA K+3
 
- BCS MV14               \ If the C flag is set, i.e. |x_sign| >= |K+3|, then
+\ BCS MV14               \ If the C flag is set, i.e. |x_sign| >= |K+3|, then
                         \ the sign of K(3 2 1). In this case, we want the
                         \ result to have the same sign as the largest argument,
                         \ which is (x_sign x_hi x_lo), which we know has the
@@ -3927,25 +3927,25 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
                         \ the sign of K(3 2 1) to... so we can jump to MV14 to
                         \ return from the subroutine
 
- LDA #1                 \ We need to swap the sign of the result in K(3 2 1),
- SBC K+1                \ which we do by calculating 0 - K(3 2 1), which we can
- STA K+1                \ do with 1 - C - K(3 2 1), as we know the C flag is
+\ LDA #1                 \ We need to swap the sign of the result in K(3 2 1),
+\ SBC K+1                \ which we do by calculating 0 - K(3 2 1), which we can
+\ STA K+1                \ do with 1 - C - K(3 2 1), as we know the C flag is
                         \ clear. We start with the low bytes
 
- LDA #0                 \ Then the middle bytes
- SBC K+2
- STA K+2
+\ LDA #0                 \ Then the middle bytes
+\ SBC K+2
+\ STA K+2
 
- LDA #0                 \ And finally the high bytes
- SBC K+3
+\ LDA #0                 \ And finally the high bytes
+\ SBC K+3
 
- AND #%01111111         \ Set the sign bit of K+3 to the same sign as T,
- ORA T                  \ i.e. the same sign as the original K(3 2 1), as
- STA K+3                \ that's the largest argument
+\ AND #%01111111         \ Set the sign bit of K+3 to the same sign as T,
+\ ORA T                  \ i.e. the same sign as the original K(3 2 1), as
+\ STA K+3                \ that's the largest argument
 
-.MV14
+\.MV14
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -4307,74 +4307,74 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.MVT6
+\.MVT6
 
- TAY                    \ Store argument A into Y, for later use
+\ TAY                    \ Store argument A into Y, for later use
 
- EOR INWK+2,X           \ Set A = A EOR x_sign
+\ EOR INWK+2,X           \ Set A = A EOR x_sign
 
- BMI MV50               \ If the sign is negative, i.e. A and x_sign have
+\ BMI MV50               \ If the sign is negative, i.e. A and x_sign have
                         \ different signs, jump to MV50
 
                         \ The signs are the same, so we can add the two
                         \ arguments and keep the sign to get the result
 
- LDA P+1                \ First we add the low bytes:
- CLC                    \
- ADC INWK,X             \   P+1 = P+1 + x_lo
- STA P+1
+\ LDA P+1                \ First we add the low bytes:
+\ CLC                    \
+\ ADC INWK,X             \   P+1 = P+1 + x_lo
+\ STA P+1
 
- LDA P+2                \ And then the high bytes:
- ADC INWK+1,X           \
- STA P+2                \   P+2 = P+2 + x_hi
+\ LDA P+2                \ And then the high bytes:
+\ ADC INWK+1,X           \
+\ STA P+2                \   P+2 = P+2 + x_hi
 
- TYA                    \ Restore the original A argument that we stored earlier
+\ TYA                    \ Restore the original A argument that we stored earlier
                         \ so that we keep the original sign
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
-.MV50
+\.MV50
 
- LDA INWK,X             \ First we subtract the low bytes:
- SEC                    \
- SBC P+1                \   P+1 = x_lo - P+1
- STA P+1
+\ LDA INWK,X             \ First we subtract the low bytes:
+\ SEC                    \
+\ SBC P+1                \   P+1 = x_lo - P+1
+\ STA P+1
 
- LDA INWK+1,X           \ And then the high bytes:
- SBC P+2                \
- STA P+2                \   P+2 = x_hi - P+2
+\ LDA INWK+1,X           \ And then the high bytes:
+\ SBC P+2                \
+\ STA P+2                \   P+2 = x_hi - P+2
 
- BCC MV51               \ If the last subtraction underflowed, then the C flag
+\ BCC MV51               \ If the last subtraction underflowed, then the C flag
                         \ will be clear and x_hi < P+2, so jump to MV51 to
                         \ negate the result
 
- TYA                    \ Restore the original A argument that we stored earlier
- EOR #%10000000         \ but flip bit 7, which flips the sign. We do this
+\ TYA                    \ Restore the original A argument that we stored earlier
+\ EOR #%10000000         \ but flip bit 7, which flips the sign. We do this
                         \ because x_hi >= P+2 so we want the result to have the
                         \ same sign as x_hi (as it's the dominant side in this
                         \ calculation). The sign of x_hi is x_sign, and x_sign
                         \ has the opposite sign to A, so we flip the sign in A
                         \ to return the correct result
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
-.MV51
+\.MV51
 
- LDA #1                 \ Our subtraction underflowed, so we negate the result
- SBC P+1                \ using two's complement, first with the low byte:
- STA P+1                \
+\ LDA #1                 \ Our subtraction underflowed, so we negate the result
+\ SBC P+1                \ using two's complement, first with the low byte:
+\ STA P+1                \
                         \   P+1 = 1 - P+1
 
- LDA #0                 \ And then the high byte:
- SBC P+2                \
- STA P+2                \   P+2 = 0 - P+2
+\ LDA #0                 \ And then the high byte:
+\ SBC P+2                \
+\ STA P+2                \   P+2 = 0 - P+2
 
- TYA                    \ Restore the original A argument that we stored earlier
+\ TYA                    \ Restore the original A argument that we stored earlier
                         \ as this is the correct sign for the result. This is
                         \ because x_hi < P+2, so we want to return the same sign
                         \ as P+2, the dominant side
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -5134,17 +5134,17 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.PIX1
-
- JSR ADD                \ Set (A X) = (A P) + (S R)
-
- STA YY+1               \ Set YY+1 to A, the high byte of the result
-
- TXA                    \ Set SYL+Y to X, the low byte of the result
- STA SYL,Y
-
-                        \ Fall through into PIX1 to draw the stardust particle
-                        \ at (X1,Y1)
+\.PIX1
+\
+\ JSR ADD                \ Set (A X) = (A P) + (S R)
+\
+\ STA YY+1               \ Set YY+1 to A, the high byte of the result
+\
+\ TXA                    \ Set SYL+Y to X, the low byte of the result
+\ STA SYL,Y
+\
+\                        \ Fall through into PIX1 to draw the stardust particle
+\                        \ at (X1,Y1)
 
 \ ******************************************************************************
 \
@@ -5518,36 +5518,36 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.FLIP
+\.FLIP
 
- LDY NOSTM              \ Set Y to the current number of stardust particles, so
+\ LDY NOSTM              \ Set Y to the current number of stardust particles, so
                         \ we can use it as a counter through all the stardust
 
-.FLL1
+\.FLL1
 
- LDX SY,Y               \ Copy the Y-th particle's y-coordinate from SY+Y into X
+\ LDX SY,Y               \ Copy the Y-th particle's y-coordinate from SY+Y into X
 
- LDA SX,Y               \ Copy the Y-th particle's x-coordinate from SX+Y into
- STA Y1                 \ both Y1 and the particle's y-coordinate
- STA SY,Y
+\ LDA SX,Y               \ Copy the Y-th particle's x-coordinate from SX+Y into
+\ STA Y1                 \ both Y1 and the particle's y-coordinate
+\ STA SY,Y
 
- TXA                    \ Copy the Y-th particle's original y-coordinate into
- STA X1                 \ both X1 and the particle's x-coordinate, so the x- and
- STA SX,Y               \ y-coordinates are now swapped and (X1, Y1) contains
+\ TXA                    \ Copy the Y-th particle's original y-coordinate into
+\ STA X1                 \ both X1 and the particle's x-coordinate, so the x- and
+\ STA SX,Y               \ y-coordinates are now swapped and (X1, Y1) contains
                         \ the particle's new coordinates
 
- LDA SZ,Y               \ Fetch the Y-th particle's distance from SZ+Y into ZZ
- STA ZZ
+\ LDA SZ,Y               \ Fetch the Y-th particle's distance from SZ+Y into ZZ
+\ STA ZZ
 
- JSR PIXEL2             \ Draw a stardust particle at (X1,Y1) with distance ZZ
+\ JSR PIXEL2             \ Draw a stardust particle at (X1,Y1) with distance ZZ
 
- DEY                    \ Decrement the counter to point to the next particle of
+\ DEY                    \ Decrement the counter to point to the next particle of
                         \ stardust
 
- BNE FLL1               \ Loop back to FLL1 until we have moved all the stardust
+\ BNE FLL1               \ Loop back to FLL1 until we have moved all the stardust
                         \ particles
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -7494,30 +7494,30 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.PZW
-
- LDX #&F0               \ Set X to dashboard colour 2 (yellow/white)
-
- LDA MCNT               \ A will be non-zero for 8 out of every 16 main loop
- AND #%00001000         \ counts, when bit 4 is set, so this is what we use to
-                        \ flash the "danger" colour
-
- AND FLH                \ A will be zeroed if flashing colours are disabled
-
- BEQ P%+4               \ If A is zero, skip to the LDA instruction below
-
- TXA                    \ Otherwise flashing colours are enabled and it's the
-                        \ main loop iteration where we flash them, so set A to
-                        \ colour 2 (yellow/white) and use the BIT trick below to
-                        \ return from the subroutine
-
- EQUB &2C               \ Skip the next instruction by turning it into
-                        \ &2C &A9 &0F, or BIT &0FA9, which does nothing apart
-                        \ from affect the flags
-
- LDA #&0F               \ Set A to dashboard colour 1 (red)
-
- RTS                    \ Return from the subroutine
+\.PZW
+\
+\ LDX #&F0               \ Set X to dashboard colour 2 (yellow/white)
+\
+\ LDA MCNT               \ A will be non-zero for 8 out of every 16 main loop
+\ AND #%00001000         \ counts, when bit 4 is set, so this is what we use to
+\                        \ flash the "danger" colour
+\
+\ AND FLH                \ A will be zeroed if flashing colours are disabled
+\
+\ BEQ P%+4               \ If A is zero, skip to the LDA instruction below
+\
+\ TXA                    \ Otherwise flashing colours are enabled and it's the
+\                        \ main loop iteration where we flash them, so set A to
+\                        \ colour 2 (yellow/white) and use the BIT trick below to
+\                        \ return from the subroutine
+\
+\ EQUB &2C               \ Skip the next instruction by turning it into
+\                        \ &2C &A9 &0F, or BIT &0FA9, which does nothing apart
+\                        \ from affect the flags
+\
+\ LDA #&0F               \ Set A to dashboard colour 1 (red)
+\
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -7569,71 +7569,71 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.DILX
+\.DILX
 
- LSR A                  \ If we call DILX, we set A = A / 16, so A is 0-15
- LSR A
+\ LSR A                  \ If we call DILX, we set A = A / 16, so A is 0-15
+\ LSR A
 
- LSR A                  \ If we call DILX+2, we set A = A / 4, so A is 0-15
+\ LSR A                  \ If we call DILX+2, we set A = A / 4, so A is 0-15
 
- LSR A                  \ If we call DIL-1, we set A = A / 2, so A is 0-15
+\ LSR A                  \ If we call DIL-1, we set A = A / 2, so A is 0-15
 
-.DIL
+\.DIL
 
                         \ If we call DIL, we leave A alone, so A is 0-15
 
- STA Q                  \ Store the indicator value in Q, now reduced to 0-15,
+\ STA Q                  \ Store the indicator value in Q, now reduced to 0-15,
                         \ which is the length of the indicator to draw in pixels
 
- LDX #&FF               \ Set R = &FF, to use as a mask for drawing each row of
- STX R                  \ each character block of the bar, starting with a full
+\ LDX #&FF               \ Set R = &FF, to use as a mask for drawing each row of
+\ STX R                  \ each character block of the bar, starting with a full
                         \ character's width of 4 pixels
 
- CMP T1                 \ If A >= T1 then we have passed the threshold where we
- BCS DL30               \ change bar colour, so jump to DL30 to set A to the
+\ CMP T1                 \ If A >= T1 then we have passed the threshold where we
+\ BCS DL30               \ change bar colour, so jump to DL30 to set A to the
                         \ "high value" colour
 
- LDA K+1                \ Set A to K+1, the "low value" colour to use
+\ LDA K+1                \ Set A to K+1, the "low value" colour to use
 
- BNE DL31               \ Jump down to DL31 (this BNE is effectively a JMP as A
+\ BNE DL31               \ Jump down to DL31 (this BNE is effectively a JMP as A
                         \ will never be zero)
 
-.DL30
+\.DL30
 
- LDA K                  \ Set A to K, the "high value" colour to use
+\ LDA K                  \ Set A to K, the "high value" colour to use
 
-.DL31
+\.DL31
 
- STA COL                \ Store the colour of the indicator in COL
+\ STA COL                \ Store the colour of the indicator in COL
 
- LDY #2                 \ We want to start drawing the indicator on the third
+\ LDY #2                 \ We want to start drawing the indicator on the third
                         \ line in this character row, so set Y to point to that
                         \ row's offset
 
- LDX #3                 \ Set up a counter in X for the width of the indicator,
+\ LDX #3                 \ Set up a counter in X for the width of the indicator,
                         \ which is 4 characters (each of which is 4 pixels wide,
                         \ to give a total width of 16 pixels)
 
-.DL1
+\.DL1
 
- LDA Q                  \ Fetch the indicator value (0-15) from Q into A
+\ LDA Q                  \ Fetch the indicator value (0-15) from Q into A
 
- CMP #4                 \ If Q < 4, then we need to draw the end cap of the
- BCC DL2                \ indicator, which is less than a full character's
+\ CMP #4                 \ If Q < 4, then we need to draw the end cap of the
+\ BCC DL2                \ indicator, which is less than a full character's
                         \ width, so jump down to DL2 to do this
 
- SBC #4                 \ Otherwise we can draw a 4-pixel wide block, so
- STA Q                  \ subtract 4 from Q so it contains the amount of the
+\ SBC #4                 \ Otherwise we can draw a 4-pixel wide block, so
+\ STA Q                  \ subtract 4 from Q so it contains the amount of the
                         \ indicator that's left to draw after this character
 
- LDA R                  \ Fetch the shape of the indicator row that we need to
+\ LDA R                  \ Fetch the shape of the indicator row that we need to
                         \ display from R, so we can use it as a mask when
                         \ painting the indicator. It will be &FF at this point
                         \ (i.e. a full 4-pixel row)
 
-.DL5
+\.DL5
 
- AND COL                \ Fetch the 4-pixel mode 5 colour byte from COL, and
+\ AND COL                \ Fetch the 4-pixel mode 5 colour byte from COL, and
                         \ only keep pixels that have their equivalent bits set
                         \ in the mask byte in A
 
@@ -7644,7 +7644,7 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 
                         \ --- End of removed code ----------------------------->
 
- INY                    \ Draw the next pixel row, incrementing Y
+\ INY                    \ Draw the next pixel row, incrementing Y
 
                         \ --- Mod: Code removed for Teletext Elite: ----------->
 
@@ -7653,7 +7653,7 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
                         \ --- End of removed code ----------------------------->
 
 
- INY                    \ And draw the third pixel row, incrementing Y
+\ INY                    \ And draw the third pixel row, incrementing Y
 
                         \ --- Mod: Code removed for Teletext Elite: ----------->
 
@@ -7661,78 +7661,78 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 
                         \ --- End of removed code ----------------------------->
 
- TYA                    \ Add 6 to Y, so Y is now 8 more than when we started
- CLC                    \ this loop iteration, so Y now points to the address
- ADC #6                 \ of the first line of the indicator bar in the next
- TAY                    \ character block (as each character is 8 bytes of
+\ TYA                    \ Add 6 to Y, so Y is now 8 more than when we started
+\ CLC                    \ this loop iteration, so Y now points to the address
+\ ADC #6                 \ of the first line of the indicator bar in the next
+\ TAY                    \ character block (as each character is 8 bytes of
                         \ screen memory)
 
- DEX                    \ Decrement the loop counter for the next character
+\ DEX                    \ Decrement the loop counter for the next character
                         \ block along in the indicator
 
- BMI DL6                \ If we just drew the last character block then we are
+\ BMI DL6                \ If we just drew the last character block then we are
                         \ done drawing, so jump down to DL6 to finish off
 
- BPL DL1                \ Loop back to DL1 to draw the next character block of
+\ BPL DL1                \ Loop back to DL1 to draw the next character block of
                         \ the indicator (this BPL is effectively a JMP as A will
                         \ never be negative following the previous BMI)
 
-.DL2
+\.DL2
 
- EOR #3                 \ If we get here then we are drawing the indicator's
- STA Q                  \ end cap, so Q is < 4, and this EOR flips the bits, so
+\ EOR #3                 \ If we get here then we are drawing the indicator's
+\ STA Q                  \ end cap, so Q is < 4, and this EOR flips the bits, so
                         \ instead of containing the number of indicator columns
                         \ we need to fill in on the left side of the cap's
                         \ character block, Q now contains the number of blank
                         \ columns there should be on the right side of the cap's
                         \ character block
 
- LDA R                  \ Fetch the current mask from R, which will be &FF at
+\ LDA R                  \ Fetch the current mask from R, which will be &FF at
                         \ this point, so we need to turn Q of the columns on the
                         \ right side of the mask to black to get the correct end
                         \ cap shape for the indicator
 
-.DL3
+\.DL3
 
- ASL A                  \ Shift the mask left so bit 0 is cleared, and then
- AND #%11101111         \ clear bit 4, which has the effect of shifting zeroes
+\ ASL A                  \ Shift the mask left so bit 0 is cleared, and then
+\ AND #%11101111         \ clear bit 4, which has the effect of shifting zeroes
                         \ from the left into each nibble (i.e. xxxx xxxx becomes
                         \ xxx0 xxx0, which blanks out the last column in the
                         \ 4-pixel mode 5 character block)
 
- DEC Q                  \ Decrement the counter for the number of columns to
+\ DEC Q                  \ Decrement the counter for the number of columns to
                         \ blank out
 
- BPL DL3                \ If we still have columns to blank out in the mask,
+\ BPL DL3                \ If we still have columns to blank out in the mask,
                         \ loop back to DL3 until the mask is correct for the
                         \ end cap
 
- PHA                    \ Store the mask byte on the stack while we use the
+\ PHA                    \ Store the mask byte on the stack while we use the
                         \ accumulator for a bit
 
- LDA #0                 \ Change the mask so no bits are set, so the characters
- STA R                  \ after the one we're about to draw will be all blank
+\ LDA #0                 \ Change the mask so no bits are set, so the characters
+\ STA R                  \ after the one we're about to draw will be all blank
 
- LDA #99                \ Set Q to a high number (99, why not) so we will keep
- STA Q                  \ drawing blank characters until we reach the end of
+\ LDA #99                \ Set Q to a high number (99, why not) so we will keep
+\ STA Q                  \ drawing blank characters until we reach the end of
                         \ the indicator row
 
- PLA                    \ Restore the mask byte from the stack so we can use it
+\ PLA                    \ Restore the mask byte from the stack so we can use it
                         \ to draw the end cap of the indicator
 
- JMP DL5                \ Jump back up to DL5 to draw the mask byte on-screen
+\ JMP DL5                \ Jump back up to DL5 to draw the mask byte on-screen
 
-.DL6
+\.DL6
 
- INC SC+1               \ Increment the high byte of SC to point to the next
+\ INC SC+1               \ Increment the high byte of SC to point to the next
                         \ character row on-screen (as each row takes up exactly
                         \ one page of 256 bytes) - so this sets up SC to point
                         \ to the next indicator, i.e. the one below the one we
                         \ just drew
 
-.DL9
+\.DL9
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -7767,13 +7767,13 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.DIL2
+\.DIL2
 
- LDY #1                 \ We want to start drawing the vertical indicator bar on
+\ LDY #1                 \ We want to start drawing the vertical indicator bar on
                         \ the second line in the indicator's character block, so
                         \ set Y to point to that row's offset
 
- STA Q                  \ Store the offset of the vertical bar to draw in Q
+\ STA Q                  \ Store the offset of the vertical bar to draw in Q
 
                         \ We are now going to work our way along the indicator
                         \ on the dashboard, from left to right, working our way
@@ -7783,33 +7783,33 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
                         \ block, we will increment Y by 8 to move on to the next
                         \ block (as each character block contains 8 rows)
 
-.DLL10
+\.DLL10
 
- SEC                    \ Set A = Q - 4, so that A contains the offset of the
- LDA Q                  \ vertical bar from the start of this character block
- SBC #4
+\ SEC                    \ Set A = Q - 4, so that A contains the offset of the
+\ LDA Q                  \ vertical bar from the start of this character block
+\ SBC #4
 
- BCS DLL11              \ If Q >= 4 then the character block we are drawing does
+\ BCS DLL11              \ If Q >= 4 then the character block we are drawing does
                         \ not contain the vertical indicator bar, so jump to
                         \ DLL11 to draw a blank character block
 
- LDA #&FF               \ Set A to a high number (and &FF is as high as they go)
+\ LDA #&FF               \ Set A to a high number (and &FF is as high as they go)
 
- LDX Q                  \ Set X to the offset of the vertical bar, which we know
+\ LDX Q                  \ Set X to the offset of the vertical bar, which we know
                         \ is within this character block
 
- STA Q                  \ Set Q to a high number (&FF, why not) so we will keep
+\ STA Q                  \ Set Q to a high number (&FF, why not) so we will keep
                         \ drawing blank characters after this one until we reach
                         \ the end of the indicator row
 
- LDA CTWOS,X            \ CTWOS is a table of ready-made 1-pixel mode 5 bytes,
+\ LDA CTWOS,X            \ CTWOS is a table of ready-made 1-pixel mode 5 bytes,
                         \ just like the TWOS and TWOS2 tables for mode 4 (see
                         \ the PIXEL routine for details of how they work). This
                         \ fetches a mode 5 1-pixel byte with the pixel position
                         \ at X, so the pixel is at the offset that we want for
                         \ our vertical bar
 
- AND #&F0               \ The 4-pixel mode 5 colour byte &F0 represents four
+\ AND #&F0               \ The 4-pixel mode 5 colour byte &F0 represents four
                         \ pixels of colour %10 (3), which is yellow in the
                         \ normal dashboard palette and white if we have an
                         \ escape pod fitted. We AND this with A so that we only
@@ -7817,21 +7817,21 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
                         \ vertical bar (i.e. A is acting as a mask on the
                         \ 4-pixel colour byte)
 
- JMP DLL12              \ Jump to DLL12 to skip the code for drawing a blank,
+\ JMP DLL12              \ Jump to DLL12 to skip the code for drawing a blank,
                         \ and move on to drawing the indicator
 
-.DLL11
+\.DLL11
 
                         \ If we get here then we want to draw a blank for this
                         \ character block
 
- STA Q                  \ Update Q with the new offset of the vertical bar, so
+\ STA Q                  \ Update Q with the new offset of the vertical bar, so
                         \ it becomes the offset after the character block we
                         \ are about to draw
 
- LDA #0                 \ Change the mask so no bits are set, so all of the
+\ LDA #0                 \ Change the mask so no bits are set, so all of the
                         \ character blocks we display from now on will be blank
-.DLL12
+\.DLL12
 
                         \ --- Mod: Code removed for Teletext Elite: ----------->
 
@@ -7840,7 +7840,7 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 
                         \ --- End of removed code ----------------------------->
 
- INY                    \ Draw the next pixel row, incrementing Y
+\ INY                    \ Draw the next pixel row, incrementing Y
 
                         \ --- Mod: Code removed for Teletext Elite: ----------->
 
@@ -7848,7 +7848,7 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 
                         \ --- End of removed code ----------------------------->
 
- INY                    \ And draw the third pixel row, incrementing Y
+\ INY                    \ And draw the third pixel row, incrementing Y
 
                         \ --- Mod: Code removed for Teletext Elite: ----------->
 
@@ -7856,7 +7856,7 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 
                         \ --- End of removed code ----------------------------->
 
- INY                    \ And draw the fourth pixel row, incrementing Y
+\ INY                    \ And draw the fourth pixel row, incrementing Y
 
                         \ --- Mod: Code removed for Teletext Elite: ----------->
 
@@ -7864,23 +7864,23 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 
                         \ --- End of removed code ----------------------------->
 
- TYA                    \ Add 5 to Y, so Y is now 8 more than when we started
- CLC                    \ this loop iteration, so Y now points to the address
- ADC #5                 \ of the first line of the indicator bar in the next
- TAY                    \ character block (as each character is 8 bytes of
+\ TYA                    \ Add 5 to Y, so Y is now 8 more than when we started
+\ CLC                    \ this loop iteration, so Y now points to the address
+\ ADC #5                 \ of the first line of the indicator bar in the next
+\ TAY                    \ character block (as each character is 8 bytes of
                         \ screen memory)
 
- CPY #30                \ If Y < 30 then we still have some more character
- BCC DLL10              \ blocks to draw, so loop back to DLL10 to display the
+\ CPY #30                \ If Y < 30 then we still have some more character
+\ BCC DLL10              \ blocks to draw, so loop back to DLL10 to display the
                         \ next one along
 
- INC SC+1               \ Increment the high byte of SC to point to the next
+\ INC SC+1               \ Increment the high byte of SC to point to the next
                         \ character row on-screen (as each row takes up exactly
                         \ one page of 256 bytes) - so this sets up SC to point
                         \ to the next indicator, i.e. the one below the one we
                         \ just drew
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -9034,27 +9034,27 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.LL164
-
- LDA #56                \ Call the NOISE routine with A = 56 to make the sound
- JSR NOISE              \ of the hyperspace drive being engaged
-
- LDA #1                 \ Set HFX to 1, which switches the screen mode to a full
- STA HFX                \ mode 5 screen, therefore making the hyperspace rings
-                        \ multi-coloured and all zig-zaggy (see the IRQ1 routine
-                        \ for details)
-
- LDA #4                 \ Set the step size for the hyperspace rings to 4, so
-                        \ there are more sections in the rings and they are
-                        \ quite round (compared to the step size of 8 used in
-                        \ the much more polygonal launch rings)
-
- JSR HFS2               \ Call HFS2 to draw the hyperspace tunnel rings
-
- DEC HFX                \ Set HFX back to 0, so we switch back to the normal
-                        \ split-screen mode
-
- RTS                    \ Return from the subroutine
+\.LL164
+\
+\ LDA #56                \ Call the NOISE routine with A = 56 to make the sound
+\ JSR NOISE              \ of the hyperspace drive being engaged
+\
+\ LDA #1                 \ Set HFX to 1, which switches the screen mode to a full
+\ STA HFX                \ mode 5 screen, therefore making the hyperspace rings
+\                        \ multi-coloured and all zig-zaggy (see the IRQ1 routine
+\                        \ for details)
+\
+\ LDA #4                 \ Set the step size for the hyperspace rings to 4, so
+\                        \ there are more sections in the rings and they are
+\                        \ quite round (compared to the step size of 8 used in
+\                        \ the much more polygonal launch rings)
+\
+\ JSR HFS2               \ Call HFS2 to draw the hyperspace tunnel rings
+\
+\ DEC HFX                \ Set HFX back to 0, so we switch back to the normal
+\                        \ split-screen mode
+\
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -9069,17 +9069,17 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.LAUN
-
- LDA #48                \ Call the NOISE routine with A = 48 to make the sound
- JSR NOISE              \ of the ship launching from the station
-
- LDA #8                 \ Set the step size for the launch tunnel rings to 8, so
-                        \ there are fewer sections in the rings and they are
-                        \ quite polygonal (compared to the step size of 4 used
-                        \ in the much rounder hyperspace rings)
-
-                        \ Fall through into HFS2 to draw the launch tunnel rings
+\.LAUN
+\
+\ LDA #48                \ Call the NOISE routine with A = 48 to make the sound
+\ JSR NOISE              \ of the ship launching from the station
+\
+\ LDA #8                 \ Set the step size for the launch tunnel rings to 8, so
+\                        \ there are fewer sections in the rings and they are
+\                        \ quite polygonal (compared to the step size of 4 used
+\                        \ in the much rounder hyperspace rings)
+\
+\                        \ Fall through into HFS2 to draw the launch tunnel rings
 
 \ ******************************************************************************
 \
@@ -9211,17 +9211,17 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
- EQUB &8C, &E7
- EQUB &8D, &ED
- EQUB &8A, &E6
- EQUB &C1, &C8
- EQUB &C8, &8B
- EQUB &E0, &8A
- EQUB &E6, &D6
- EQUB &C5, &C6
- EQUB &C1, &CA
- EQUB &95, &9D
- EQUB &9C, &97
+\ EQUB &8C, &E7
+\ EQUB &8D, &ED
+\ EQUB &8A, &E6
+\ EQUB &C1, &C8
+\ EQUB &C8, &8B
+\ EQUB &E0, &8A
+\ EQUB &E6, &D6
+\ EQUB &C5, &C6
+\ EQUB &C1, &CA
+\ EQUB &95, &9D
+\ EQUB &9C, &97
 
 \ ******************************************************************************
 \
@@ -9239,16 +9239,16 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.MU5
-
- STA K                  \ Set K(3 2 1 0) to (A A A A)
- STA K+1
- STA K+2
- STA K+3
-
- CLC                    \ Clear the C flag
-
- RTS                    \ Return from the subroutine
+\.MU5
+\
+\ STA K                  \ Set K(3 2 1 0) to (A A A A)
+\ STA K+1
+\ STA K+2
+\ STA K+3
+\
+\ CLC                    \ Clear the C flag
+\
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -9270,16 +9270,16 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.MLS2
+\.MLS2
 
- LDX XX                 \ Set (S R) = XX(1 0), starting with the low bytes
- STX R
+\ LDX XX                 \ Set (S R) = XX(1 0), starting with the low bytes
+\ STX R
 
- LDX XX+1               \ And then doing the high bytes
- STX S
+\ LDX XX+1               \ And then doing the high bytes
+\ STX S
 
- LDX ALP1               \ This repeats the first two instructions of MLS1, which
- STX P                  \ is presumably unintentional (though it has no effect)
+\ LDX ALP1               \ This repeats the first two instructions of MLS1, which
+\ STX P                  \ is presumably unintentional (though it has no effect)
 
                         \ Fall through into MLS1 to calculate (A P) = A * ALP1
 
@@ -9367,10 +9367,10 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.MLU1
+\.MLU1
 
- LDA SY,Y               \ Set Y1 the Y-th byte of SY
- STA Y1
+\ LDA SY,Y               \ Set Y1 the Y-th byte of SY
+\ STA Y1
 
                         \ Fall through into MLU2 to calculate:
                         \
@@ -9392,10 +9392,10 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.MLU2
+\.MLU2
 
- AND #%01111111         \ Clear the sign bit in P, so P = |A|
- STA P
+\ AND #%01111111         \ Clear the sign bit in P, so P = |A|
+\ STA P
 
                         \ Fall through into MULTU to calculate:
                         \
@@ -9507,12 +9507,12 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.MU6
+\.MU6
 
- STA P+1                \ Set P(1 0) = (A A)
- STA P
+\ STA P+1                \ Set P(1 0) = (A A)
+\ STA P
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -9655,31 +9655,31 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-{
-
-                        \ --- Mod: Code removed for flicker-free ships: ------->
-
-\ LDX Q
-\ BEQ MU1
+\{
+\
+\                        \ --- Mod: Code removed for flicker-free ships: ------->
+\
+\\ LDX Q
+\\ BEQ MU1
+\\ DEX
+\\ STX T
+\\ LDA #0
+\
+\                        \ --- End of removed code ----------------------------->
+\
+\ LDX #8
+\ LSR P
+\
+\.MUL6
+\
+\ BCC P%+4
+\ ADC T
+\ ROR A
+\ ROR P
 \ DEX
-\ STX T
-\ LDA #0
-
-                        \ --- End of removed code ----------------------------->
-
- LDX #8
- LSR P
-
-.MUL6
-
- BCC P%+4
- ADC T
- ROR A
- ROR P
- DEX
- BNE MUL6
- RTS
-}
+\ BNE MUL6
+\ RTS
+\}
 
 \ ******************************************************************************
 \
@@ -9726,55 +9726,55 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
- STX Q                  \ Store X in Q
+\ STX Q                  \ Store X in Q
 
-.MLTU2
+\.MLTU2
 
- EOR #%11111111         \ Flip the bits in A and rotate right, storing the
- LSR A                  \ result in P+1, so we now calculate (P+1 P) * Q
- STA P+1
+\ EOR #%11111111         \ Flip the bits in A and rotate right, storing the
+\ LSR A                  \ result in P+1, so we now calculate (P+1 P) * Q
+\ STA P+1
 
- LDA #0                 \ Set A = 0 so we can start building the answer in A
+\ LDA #0                 \ Set A = 0 so we can start building the answer in A
 
- LDX #16                \ Set up a counter in X to count the 16 bits in (P+1 P)
+\ LDX #16                \ Set up a counter in X to count the 16 bits in (P+1 P)
 
- ROR P                  \ Set P = P >> 1 with bit 7 = bit 0 of A
+\ ROR P                  \ Set P = P >> 1 with bit 7 = bit 0 of A
                         \ and C flag = bit 0 of P
 
-.MUL7
+\.MUL7
 
- BCS MU21               \ If C (i.e. the next bit from P) is set, do not do the
+\ BCS MU21               \ If C (i.e. the next bit from P) is set, do not do the
                         \ addition for this bit of P, and instead skip to MU21
                         \ to just do the shifts
 
- ADC Q                  \ Do the addition for this bit of P:
+\ ADC Q                  \ Do the addition for this bit of P:
                         \
                         \   A = A + Q + C
                         \     = A + Q
 
- ROR A                  \ Rotate (A P+1 P) to the right, so we capture the next
- ROR P+1                \ digit of the result in P+1, and extract the next digit
- ROR P                  \ of (P+1 P) in the C flag
+\ ROR A                  \ Rotate (A P+1 P) to the right, so we capture the next
+\ ROR P+1                \ digit of the result in P+1, and extract the next digit
+\ ROR P                  \ of (P+1 P) in the C flag
 
- DEX                    \ Decrement the loop counter
+\ DEX                    \ Decrement the loop counter
 
- BNE MUL7               \ Loop back for the next bit until P has been rotated
+\ BNE MUL7               \ Loop back for the next bit until P has been rotated
                         \ all the way
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
-.MU21
+\.MU21
 
- LSR A                  \ Shift (A P+1 P) to the right, so we capture the next
- ROR P+1                \ digit of the result in P+1, and extract the next digit
- ROR P                  \ of (P+1 P) in the C flag
+\ LSR A                  \ Shift (A P+1 P) to the right, so we capture the next
+\ ROR P+1                \ digit of the result in P+1, and extract the next digit
+\ ROR P                  \ of (P+1 P) in the C flag
 
- DEX                    \ Decrement the loop counter
+\ DEX                    \ Decrement the loop counter
 
- BNE MUL7               \ Loop back for the next bit until P has been rotated
+\ BNE MUL7               \ Loop back for the next bit until P has been rotated
                         \ all the way
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -9790,10 +9790,10 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.MUT3
+\.MUT3
 
- LDX ALP1               \ Set P = ALP1, though this gets overwritten by the
- STX P                  \ following, so this has no effect
+\ LDX ALP1               \ Set P = ALP1, though this gets overwritten by the
+\ STX P                  \ following, so this has no effect
 
                         \ Fall through into MUT2 to do the following:
                         \
@@ -9816,10 +9816,10 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.MUT2
+\.MUT2
 
- LDX XX+1               \ Set S = XX+1
- STX S
+\ LDX XX+1               \ Set S = XX+1
+\ STX S
 
                         \ Fall through into MUT1 to do the following:
                         \
@@ -9842,10 +9842,10 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.MUT1
+\.MUT1
 
- LDX XX                 \ Set R = XX
- STX R
+\ LDX XX                 \ Set R = XX
+\ STX R
 
                         \ Fall through into MULT1 to do the following:
                         \
@@ -10002,31 +10002,31 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.TAS3
+\.TAS3
 
- LDX INWK,Y             \ Set Q = the Y-th byte of INWK, i.e. vect_x
- STX Q
+\ LDX INWK,Y             \ Set Q = the Y-th byte of INWK, i.e. vect_x
+\ STX Q
 
- LDA XX15               \ Set A = XX15
+\ LDA XX15               \ Set A = XX15
 
- JSR MULT12             \ Set (S R) = Q * A
+\ JSR MULT12             \ Set (S R) = Q * A
                         \           = vect_x * XX15
 
- LDX INWK+2,Y           \ Set Q = the Y+2-th byte of INWK, i.e. vect_y
- STX Q
+\ LDX INWK+2,Y           \ Set Q = the Y+2-th byte of INWK, i.e. vect_y
+\ STX Q
 
- LDA XX15+1             \ Set A = XX15+1
+\ LDA XX15+1             \ Set A = XX15+1
 
- JSR MAD                \ Set (A X) = Q * A + (S R)
+\ JSR MAD                \ Set (A X) = Q * A + (S R)
                         \           = vect_y * XX15+1 + vect_x * XX15
 
- STA S                  \ Set (S R) = (A X)
- STX R
+\ STA S                  \ Set (S R) = (A X)
+\ STX R
 
- LDX INWK+4,Y           \ Set Q = the Y+2-th byte of INWK, i.e. vect_z
- STX Q
+\ LDX INWK+4,Y           \ Set Q = the Y+2-th byte of INWK, i.e. vect_z
+\ STX Q
 
- LDA XX15+2             \ Set A = XX15+2
+\ LDA XX15+2             \ Set A = XX15+2
 
                         \ Fall through into MAD to set:
                         \
@@ -10294,9 +10294,9 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.DV42
+\.DV42
 
- LDA SZ,Y               \ Fetch the Y-th dust particle's z_hi coordinate into A
+\ LDA SZ,Y               \ Fetch the Y-th dust particle's z_hi coordinate into A
 
                         \ Fall through into DV41 to do:
                         \
@@ -10333,11 +10333,11 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.DV41
+\.DV41
 
- STA Q                  \ Store A in Q
+\ STA Q                  \ Store A in Q
 
- LDA DELTA              \ Fetch the speed from DELTA into A
+\ LDA DELTA              \ Fetch the speed from DELTA into A
 
                         \ Fall through into DVID4 to do:
                         \
@@ -10452,44 +10452,44 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.DVID3B2
+\.DVID3B2
 
- STA P+2                \ Set P+2 = A
+\ STA P+2                \ Set P+2 = A
 
- LDA INWK+6             \ Set Q = z_lo
- STA Q
+\ LDA INWK+6             \ Set Q = z_lo
+\ STA Q
 
- LDA INWK+7             \ Set R = z_hi
- STA R
+\ LDA INWK+7             \ Set R = z_hi
+\ STA R
 
- LDA INWK+8             \ Set S = z_sign
- STA S
+\ LDA INWK+8             \ Set S = z_sign
+\ STA S
 
-.DVID3B
+\.DVID3B
 
                         \ Given the above assignments, we now want to calculate
                         \ the following to get the result we want:
                         \
                         \   K(3 2 1 0) = P(2 1 0) / (S R Q)
 
- LDA P                  \ Make sure P(2 1 0) is at least 1
- ORA #1
- STA P
+\ LDA P                  \ Make sure P(2 1 0) is at least 1
+\ ORA #1
+\ STA P
 
- LDA P+2                \ Set T to the sign of P+2 * S (i.e. the sign of the
- EOR S                  \ result) and store it in T
- AND #%10000000
- STA T
+\ LDA P+2                \ Set T to the sign of P+2 * S (i.e. the sign of the
+\ EOR S                  \ result) and store it in T
+\ AND #%10000000
+\ STA T
 
- LDY #0                 \ Set Y = 0 to store the scale factor
+\ LDY #0                 \ Set Y = 0 to store the scale factor
 
- LDA P+2                \ Clear the sign bit of P+2, so the division can be done
- AND #%01111111         \ with positive numbers and we'll set the correct sign
+\ LDA P+2                \ Clear the sign bit of P+2, so the division can be done
+\ AND #%01111111         \ with positive numbers and we'll set the correct sign
                         \ below, once all the maths is done
                         \
                         \ This also leaves A = P+2, which we use below
 
-.DVL9
+\.DVL9
 
                         \ We now shift (A P+1 P) left until A >= 64, counting
                         \ the number of shifts in Y. This makes the top part of
@@ -10498,37 +10498,37 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
                         \ final result, we shift the result by the number of
                         \ places in Y, and in the correct direction
 
- CMP #64                \ If A >= 64, jump down to DV14
- BCS DV14
+\ CMP #64                \ If A >= 64, jump down to DV14
+\ BCS DV14
 
- ASL P                  \ Shift (A P+1 P) to the left
- ROL P+1
- ROL A
+\ ASL P                  \ Shift (A P+1 P) to the left
+\ ROL P+1
+\ ROL A
 
- INY                    \ Increment the scale factor in Y
+\ INY                    \ Increment the scale factor in Y
 
- BNE DVL9               \ Loop up to DVL9 (this BNE is effectively a JMP, as Y
+\ BNE DVL9               \ Loop up to DVL9 (this BNE is effectively a JMP, as Y
                         \ will never be zero)
 
-.DV14
+\.DV14
 
                         \ If we get here, A >= 64 and contains the highest byte
                         \ of the numerator, scaled up by the number of left
                         \ shifts in Y
 
- STA P+2                \ Store A in P+2, so we now have the scaled value of
+\ STA P+2                \ Store A in P+2, so we now have the scaled value of
                         \ the numerator in P(2 1 0)
 
- LDA S                  \ Set A = |S|
- AND #%01111111
+\ LDA S                  \ Set A = |S|
+\ AND #%01111111
 
- BMI DV9                \ If bit 7 of A is set, jump down to DV9 to skip the
+\ BMI DV9                \ If bit 7 of A is set, jump down to DV9 to skip the
                         \ left-shifting of the denominator (though this branch
                         \ instruction has no effect as bit 7 of the above AND
                         \ can never be set, which is why this instruction was
                         \ removed from later versions)
 
-.DVL6
+\.DVL6
 
                         \ We now shift (S R Q) left until bit 7 of S is set,
                         \ reducing Y by the number of shifts. This makes the
@@ -10541,16 +10541,16 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
                         \ We set A to |S| above, so the following actually
                         \ shifts (A R Q)
 
- DEY                    \ Decrement the scale factor in Y
+\ DEY                    \ Decrement the scale factor in Y
 
- ASL Q                  \ Shift (A R Q) to the left
- ROL R
- ROL A
+\ ASL Q                  \ Shift (A R Q) to the left
+\ ROL R
+\ ROL A
 
- BPL DVL6               \ Loop up to DVL6 to do another shift, until bit 7 of A
+\ BPL DVL6               \ Loop up to DVL6 to do another shift, until bit 7 of A
                         \ is set and we can't shift left any further
 
-.DV9
+\.DV9
 
                         \ We have now shifted both the numerator and denominator
                         \ left as far as they will go, keeping a tally of the
@@ -10558,14 +10558,14 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
                         \ can now divide just the two highest bytes to get our
                         \ result
 
- STA Q                  \ Set Q = A, the highest byte of the denominator
+\ STA Q                  \ Set Q = A, the highest byte of the denominator
 
- LDA #254               \ Set R to have bits 1-7 set, so we can pass this to
- STA R                  \ LL31 to act as the bit counter in the division
+\ LDA #254               \ Set R to have bits 1-7 set, so we can pass this to
+\ STA R                  \ LL31 to act as the bit counter in the division
 
- LDA P+2                \ Set A to the highest byte of the numerator
+\ LDA P+2                \ Set A to the highest byte of the numerator
 
- JSR LL31               \ Call LL31 to calculate:
+\ JSR LL31               \ Call LL31 to calculate:
                         \
                         \   R = 256 * A / Q
                         \     = 256 * numerator / denominator
@@ -10573,57 +10573,57 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
                         \ The result of our division is now in R, so we just
                         \ need to shift it back by the scale factor in Y
 
- LDA #0                 \ Set K(3 2 1) = 0 to hold the result (we populate K
- STA K+1                \ next)
- STA K+2
- STA K+3
+\ LDA #0                 \ Set K(3 2 1) = 0 to hold the result (we populate K
+\ STA K+1                \ next)
+\ STA K+2
+\ STA K+3
 
- TYA                    \ If Y is positive, jump to DV12
- BPL DV12
+\ TYA                    \ If Y is positive, jump to DV12
+\ BPL DV12
 
                         \ If we get here then Y is negative, so we need to shift
                         \ the result R to the left by Y places, and then set the
                         \ correct sign for the result
 
- LDA R                  \ Set A = R
+\ LDA R                  \ Set A = R
 
-.DVL8
+\.DVL8
 
- ASL A                  \ Shift (K+3 K+2 K+1 A) left
- ROL K+1
- ROL K+2
- ROL K+3
+\ ASL A                  \ Shift (K+3 K+2 K+1 A) left
+\ ROL K+1
+\ ROL K+2
+\ ROL K+3
 
- INY                    \ Increment the scale factor in Y
+\ INY                    \ Increment the scale factor in Y
 
- BNE DVL8               \ Loop back to DVL8 until we have shifted left by Y
+\ BNE DVL8               \ Loop back to DVL8 until we have shifted left by Y
                         \ places
 
- STA K                  \ Store A in K so the result is now in K(3 2 1 0)
+\ STA K                  \ Store A in K so the result is now in K(3 2 1 0)
 
- LDA K+3                \ Set K+3 to the sign in T, which we set above to the
- ORA T                  \ correct sign for the result
- STA K+3
+\ LDA K+3                \ Set K+3 to the sign in T, which we set above to the
+\ ORA T                  \ correct sign for the result
+\ STA K+3
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
-.DV13
+\.DV13
 
                         \ If we get here then Y is zero, so we don't need to
                         \ shift the result R, we just need to set the correct
                         \ sign for the result
 
- LDA R                  \ Store R in K so the result is now in K(3 2 1 0)
- STA K
+\ LDA R                  \ Store R in K so the result is now in K(3 2 1 0)
+\ STA K
 
- LDA T                  \ Set K+3 to the sign in T, which we set above to the
- STA K+3                \ correct sign for the result
+\ LDA T                  \ Set K+3 to the sign in T, which we set above to the
+\ STA K+3                \ correct sign for the result
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
-.DV12
+\.DV12
 
- BEQ DV13               \ We jumped here having set A to the scale factor in Y,
+\ BEQ DV13               \ We jumped here having set A to the scale factor in Y,
                         \ so this jumps up to DV13 if Y = 0
 
                         \ If we get here then Y is positive and non-zero, so we
@@ -10633,24 +10633,24 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
                         \ lowest byte to the right, so no set bits will make
                         \ their way into the top three bytes
 
- LDA R                  \ Set A = R
+\ LDA R                  \ Set A = R
 
-.DVL10
+\.DVL10
 
- LSR A                  \ Shift A right
+\ LSR A                  \ Shift A right
 
- DEY                    \ Decrement the scale factor in Y
+\ DEY                    \ Decrement the scale factor in Y
 
- BNE DVL10              \ Loop back to DVL10 until we have shifted right by Y
+\ BNE DVL10              \ Loop back to DVL10 until we have shifted right by Y
                         \ places
 
- STA K                  \ Store the shifted A in K so the result is now in
+\ STA K                  \ Store the shifted A in K so the result is now in
                         \ K(3 2 1 0)
 
- LDA T                  \ Set K+3 to the sign in T, which we set above to the
- STA K+3                \ correct sign for the result
+\ LDA T                  \ Set K+3 to the sign in T, which we set above to the
+\ STA K+3                \ correct sign for the result
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -10670,37 +10670,37 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 \
 \ ******************************************************************************
 
-.cntr
-
- LDA DAMP               \ If DAMP is non-zero, then keyboard damping is not
- BNE RE1                \ enabled, so jump to RE1 to return from the subroutine
-
- TXA                    \ If X < 128, then it's in the left-hand side of the
- BPL BUMP               \ dashboard slider, so jump to BUMP to bump it up by 1,
-                        \ to move it closer to the centre
-
- DEX                    \ Otherwise X >= 128, so it's in the right-hand side
- BMI RE1                \ of the dashboard slider, so decrement X by 1, and if
-                        \ it's still >= 128, jump to RE1 to return from the
-                        \ subroutine, otherwise fall through to BUMP to undo
-                        \ the bump and then return
-
-.BUMP
-
- INX                    \ Bump X up by 1, and if it hasn't overshot the end of
- BNE RE1                \ the dashboard slider, jump to RE1 to return from the
-                        \ subroutine, otherwise fall through to REDU to drop
-                        \ it down by 1 again
-
-.REDU
-
- DEX                    \ Reduce X by 1, and if we have reached 0 jump up to
- BEQ BUMP               \ BUMP to add 1, because we need the value to be in the
-                        \ range 1 to 255
-
-.RE1
-
- RTS                    \ Return from the subroutine
+\.cntr
+\
+\ LDA DAMP               \ If DAMP is non-zero, then keyboard damping is not
+\ BNE RE1                \ enabled, so jump to RE1 to return from the subroutine
+\
+\ TXA                    \ If X < 128, then it's in the left-hand side of the
+\ BPL BUMP               \ dashboard slider, so jump to BUMP to bump it up by 1,
+\                        \ to move it closer to the centre
+\
+\ DEX                    \ Otherwise X >= 128, so it's in the right-hand side
+\ BMI RE1                \ of the dashboard slider, so decrement X by 1, and if
+\                        \ it's still >= 128, jump to RE1 to return from the
+\                        \ subroutine, otherwise fall through to BUMP to undo
+\                        \ the bump and then return
+\
+\.BUMP
+\
+\ INX                    \ Bump X up by 1, and if it hasn't overshot the end of
+\ BNE RE1                \ the dashboard slider, jump to RE1 to return from the
+\                        \ subroutine, otherwise fall through to REDU to drop
+\                        \ it down by 1 again
+\
+\.REDU
+\
+\ DEX                    \ Reduce X by 1, and if we have reached 0 jump up to
+\ BEQ BUMP               \ BUMP to add 1, because we need the value to be in the
+\                        \ range 1 to 255
+\
+\.RE1
+\
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -11870,11 +11870,11 @@ BNE BRPS               \ Jump to BRP via BRPS to print the extended token in A
 \
 \ ******************************************************************************
 
-.CPIX4
+\.CPIX4
 
- JSR CPIX2              \ Call CPIX2 to draw a single-height dash at (X1, Y1)
+\ JSR CPIX2              \ Call CPIX2 to draw a single-height dash at (X1, Y1)
 
- DEC Y1                 \ Decrement Y1
+\ DEC Y1                 \ Decrement Y1
 
                         \ Fall through into CPIX2 to draw a second single-height
                         \ dash on the pixel row above the first one, to create a
@@ -14003,35 +14003,35 @@ BNE BRPS               \ Jump to BRP via BRPS to print the extended token in A
 \
 \ ******************************************************************************
 
-.TT214
-
-.TT221
-
- JSR TT27               \ Print the text token in A
-
- LDA #206               \ Print extended token 206 ("{all caps}(Y/N)?")
- JSR DETOK
-
- JSR TT217              \ Scan the keyboard until a key is pressed, and return
-                        \ the key's ASCII code in A and X
-
- ORA #%00100000         \ Set bit 5 in the value of the key pressed, which
-                        \ converts it to lower case
-
- CMP #'y'               \ If "y" was pressed, jump to TT218
- BEQ TT218
-
- LDA #'n'               \ Otherwise jump to TT26 to print "n" and return from
- JMP TT26               \ the subroutine using a tail call (so all other
-                        \ responses apart from "y" indicate a no)
-
-.TT218
-
- JSR TT26               \ Print the character in A, i.e. print "y"
-
- SEC                    \ Set the C flag to indicate a "yes" response
-
- RTS                    \ Return from the subroutine
+\.TT214
+\
+\.TT221
+\
+\ JSR TT27               \ Print the text token in A
+\
+\ LDA #206               \ Print extended token 206 ("{all caps}(Y/N)?")
+\ JSR DETOK
+\
+\ JSR TT217              \ Scan the keyboard until a key is pressed, and return
+\                        \ the key's ASCII code in A and X
+\
+\ ORA #%00100000         \ Set bit 5 in the value of the key pressed, which
+\                        \ converts it to lower case
+\
+\ CMP #'y'               \ If "y" was pressed, jump to TT218
+\ BEQ TT218
+\
+\ LDA #'n'               \ Otherwise jump to TT26 to print "n" and return from
+\ JMP TT26               \ the subroutine using a tail call (so all other
+\                        \ responses apart from "y" indicate a no)
+\
+\.TT218
+\
+\ JSR TT26               \ Print the character in A, i.e. print "y"
+\
+\ SEC                    \ Set the C flag to indicate a "yes" response
+\
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -18159,7 +18159,7 @@ ENDIF
 \
 \ ******************************************************************************
 
-.DET1
+\.DET1
 
 \ LDA #6                 \ Set A to 6 so we can update 6845 register R6 below
 \
@@ -18171,7 +18171,7 @@ ENDIF
 \
 \ CLI                    \ Re-enable interrupts
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -18609,16 +18609,16 @@ ENDIF
 \
 \ ******************************************************************************
 
-.NwS1
+\.NwS1
 
- LDA INWK,X             \ Load the X-th byte of INWK into A and flip bit 7,
- EOR #%10000000         \ storing the result back in the X-th byte of INWK
- STA INWK,X
+\ LDA INWK,X             \ Load the X-th byte of INWK into A and flip bit 7,
+\ EOR #%10000000         \ storing the result back in the X-th byte of INWK
+\ STA INWK,X
 
- INX                    \ Add 2 to X
- INX
+\ INX                    \ Add 2 to X
+\ INX
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -18635,9 +18635,9 @@ ENDIF
 \
 \ ******************************************************************************
 
-.ABORT
+\.ABORT
 
- LDX #&FF               \ Set X to &FF, which is the value of MSTG when we have
+\ LDX #&FF               \ Set X to &FF, which is the value of MSTG when we have
                         \ no target lock for our missile
 
                         \ Fall through into ABORT2 to set the missile lock to
@@ -18673,17 +18673,17 @@ ENDIF
 \
 \ ******************************************************************************
 
-.ABORT2
+\.ABORT2
 
- STX MSTG               \ Store the target of our missile lock in MSTG
+\ STX MSTG               \ Store the target of our missile lock in MSTG
 
- LDX NOMSL              \ Call MSBAR to update the leftmost indicator in the
- JSR MSBAR              \ dashboard's missile bar, which returns with Y = 0
+\ LDX NOMSL              \ Call MSBAR to update the leftmost indicator in the
+\ JSR MSBAR              \ dashboard's missile bar, which returns with Y = 0
 
- STY MSAR               \ Set MSAR = 0 to indicate that the leftmost missile
+\ STY MSAR               \ Set MSAR = 0 to indicate that the leftmost missile
                         \ is no longer seeking a target lock
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -18694,15 +18694,15 @@ ENDIF
 \
 \ ******************************************************************************
 
-.SPBLB
+\.SPBLB
 
- LDA #24*8              \ The space station bulb is in character block number 24
+\ LDA #24*8              \ The space station bulb is in character block number 24
                         \ with each character taking 8 bytes, so this sets the
                         \ low byte of the screen address of the character block
                         \ we want to draw to
 
- LDX #LO(SPBT)          \ Set (Y X) to point to the character definition in SPBT
- LDY #HI(SPBT)
+\ LDX #LO(SPBT)          \ Set (Y X) to point to the character definition in SPBT
+\ LDY #HI(SPBT)
 
                         \ Fall through into BULB to draw the space station bulb
 
@@ -18733,18 +18733,18 @@ ENDIF
 \
 \ ******************************************************************************
 
-.BULB
+\.BULB
 
- STA SC                 \ Store the low byte of the screen address in SC
+\ STA SC                 \ Store the low byte of the screen address in SC
 
- STX P+1                \ Set P(2 1) = (Y X)
- STY P+2
+\ STX P+1                \ Set P(2 1) = (Y X)
+\ STY P+2
 
- LDA #&7D               \ Set A to the high byte of the screen address, which is
+\ LDA #&7D               \ Set A to the high byte of the screen address, which is
                         \ &7D as the bulbs are both in the character row from
                         \ &7D00 to &7DFF
 
- JMP RREN               \ Call RREN to print the character definition pointed to
+\ JMP RREN               \ Call RREN to print the character definition pointed to
                         \ by P(2 1) at the screen address pointed to by (A SC),
                         \ returning from the subroutine using a tail call
 
@@ -19650,15 +19650,15 @@ ENDIF
 \
 \ ******************************************************************************
 
-.WP1
+\.WP1
 
- LDA #1                 \ Set LSP = 1 to reset the ball line heap pointer
- STA LSP
+\ LDA #1                 \ Set LSP = 1 to reset the ball line heap pointer
+\ STA LSP
 
- LDA #&FF               \ Set LSX2 = &FF to indicate the ball line heap is empty
- STA LSX2
+\ LDA #&FF               \ Set LSX2 = &FF to indicate the ball line heap is empty
+\ STA LSX2
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -19681,44 +19681,44 @@ ENDIF
 \
 \ ******************************************************************************
 
-.WPLS
+\.WPLS
 
- LDA LSX                \ If LSX < 0, the sun line heap is empty, so return from
- BMI PL44               \ the subroutine (as PL44 contains a CLC and RTS)
+\ LDA LSX                \ If LSX < 0, the sun line heap is empty, so return from
+\ BMI PL44               \ the subroutine (as PL44 contains a CLC and RTS)
 
- LDA SUNX               \ Set YY(1 0) = SUNX(1 0), the x-coordinate of the
- STA YY                 \ vertical centre axis of the sun that's currently on
- LDA SUNX+1             \ screen
- STA YY+1
+\ LDA SUNX               \ Set YY(1 0) = SUNX(1 0), the x-coordinate of the
+\ STA YY                 \ vertical centre axis of the sun that's currently on
+\ LDA SUNX+1             \ screen
+\ STA YY+1
 
- LDY #2*Y-1             \ #Y is the y-coordinate of the centre of the space
+\ LDY #2*Y-1             \ #Y is the y-coordinate of the centre of the space
                         \ view, so this sets Y as a counter for the number of
                         \ lines in the space view (i.e. 191), which is also the
                         \ number of lines in the LSO block
 
-.WPL2
+\.WPL2
 
- LDA LSO,Y              \ Fetch the Y-th point from the sun line heap, which
+\ LDA LSO,Y              \ Fetch the Y-th point from the sun line heap, which
                         \ gives us the half-width of the sun's line on this line
                         \ of the screen
 
- BEQ P%+5               \ If A = 0, skip the following call to HLOIN2 as there
+\ BEQ P%+5               \ If A = 0, skip the following call to HLOIN2 as there
                         \ is no sun line on this line of the screen
 
- JSR HLOIN2             \ Call HLOIN2 to draw a horizontal line on pixel line Y,
+\ JSR HLOIN2             \ Call HLOIN2 to draw a horizontal line on pixel line Y,
                         \ with centre point YY(1 0) and half-width A, and remove
                         \ the line from the sun line heap once done
 
- DEY                    \ Decrement the loop counter
+\ DEY                    \ Decrement the loop counter
 
- BNE WPL2               \ Loop back for the next line in the line heap until
+\ BNE WPL2               \ Loop back for the next line in the line heap until
                         \ we have gone through the entire heap
 
- DEY                    \ This sets Y to &FF, as we end the loop with Y = 0
+\ DEY                    \ This sets Y to &FF, as we end the loop with Y = 0
 
- STY LSX                \ Set LSX to &FF to indicate the sun line heap is empty
+\ STY LSX                \ Set LSX to &FF to indicate the sun line heap is empty
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -20574,36 +20574,36 @@ ENDIF
 \
 \ ******************************************************************************
 
-.Ze
+\.Ze
 
- JSR ZINF               \ Call ZINF to reset the INWK ship workspace
+\ JSR ZINF               \ Call ZINF to reset the INWK ship workspace
 
- JSR DORND              \ Set A and X to random numbers
+\ JSR DORND              \ Set A and X to random numbers
 
- STA T1                 \ Store A in T1
+\ STA T1                 \ Store A in T1
 
- AND #%10000000         \ Extract the sign of A and store in x_sign
- STA INWK+2
+\ AND #%10000000         \ Extract the sign of A and store in x_sign
+\ STA INWK+2
 
- TXA                    \ Extract the sign of X and store in y_sign
- AND #%10000000
- STA INWK+5
+\ TXA                    \ Extract the sign of X and store in y_sign
+\ AND #%10000000
+\ STA INWK+5
 
- LDA #25                \ Set x_hi = y_hi = z_hi = 25, a fair distance away
- STA INWK+1
- STA INWK+4
- STA INWK+7
+\ LDA #25                \ Set x_hi = y_hi = z_hi = 25, a fair distance away
+\ STA INWK+1
+\ STA INWK+4
+\ STA INWK+7
 
- TXA                    \ Set the C flag if X >= 245 (4% chance)
- CMP #245
+\ TXA                    \ Set the C flag if X >= 245 (4% chance)
+\ CMP #245
 
- ROL A                  \ Set bit 0 of A to the C flag (i.e. there's a 4%
+\ ROL A                  \ Set bit 0 of A to the C flag (i.e. there's a 4%
                         \ chance of this ship having E.C.M.)
 
- ORA #%11000000         \ Set bits 6 and 7 of A, so the ship is hostile (bit 6
+\ ORA #%11000000         \ Set bits 6 and 7 of A, so the ship is hostile (bit 6
                         \ and has AI (bit 7)
 
- STA INWK+32            \ Store A in the AI flag of this ship
+\ STA INWK+32            \ Store A in the AI flag of this ship
 
                         \ Fall through into DORND2 to set A, X and the C flag
                         \ randomly
@@ -21225,19 +21225,19 @@ ENDIF
 \
 \ ******************************************************************************
 
-.BAD
+\.BAD
 
- LDA QQ20+3             \ Set A to the number of tonnes of slaves in the hold
+\ LDA QQ20+3             \ Set A to the number of tonnes of slaves in the hold
 
- CLC                    \ Clear the C flag so we can do addition without the
+\ CLC                    \ Clear the C flag so we can do addition without the
                         \ C flag affecting the result
 
- ADC QQ20+6             \ Add the number of tonnes of narcotics in the hold
+\ ADC QQ20+6             \ Add the number of tonnes of narcotics in the hold
 
- ASL A                  \ Double the result and add the number of tonnes of
- ADC QQ20+10            \ firearms in the hold
+\ ASL A                  \ Double the result and add the number of tonnes of
+\ ADC QQ20+10            \ firearms in the hold
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -22860,35 +22860,35 @@ ENDIF
 \
 \ ******************************************************************************
 
-.GTDRV
-
- LDA #2                 \ Print extended token 2 ("{cr}WHICH DRIVE?")
- JSR DETOK
-
- JSR t                  \ Scan the keyboard until a key is pressed, returning
-                        \ the ASCII code in A and X
-
- ORA #%00010000         \ Set bit 4 of A, perhaps to avoid printing any control
-                        \ characters in the next instruction
-
- JSR CHPR               \ Print the character in A
-
- PHA                    \ Store A on the stack so we can retrieve it after the
-                        \ call to FEED
-
- JSR FEED               \ Print a newline
-
- PLA                    \ Restore A from the stack
-
- CMP #'0'               \ If A < ASCII "0", then it is not a valid drive number,
- BCC LOR                \ so jump to LOR to set the C flag and return from the
-                        \ subroutine
-
- CMP #'4'               \ If A >= ASCII "4", then it is not a valid drive
-                        \ number, and this CMP sets the C flag, otherwise it is
-                        \ a valid drive number in the range 0-3, so clear it
-
- RTS                    \ Return from the subroutine
+\.GTDRV
+\
+\ LDA #2                 \ Print extended token 2 ("{cr}WHICH DRIVE?")
+\ JSR DETOK
+\
+\ JSR t                  \ Scan the keyboard until a key is pressed, returning
+\                        \ the ASCII code in A and X
+\
+\ ORA #%00010000         \ Set bit 4 of A, perhaps to avoid printing any control
+\                        \ characters in the next instruction
+\
+\ JSR CHPR               \ Print the character in A
+\
+\ PHA                    \ Store A on the stack so we can retrieve it after the
+\                        \ call to FEED
+\
+\ JSR FEED               \ Print a newline
+\
+\ PLA                    \ Restore A from the stack
+\
+\ CMP #'0'               \ If A < ASCII "0", then it is not a valid drive number,
+\ BCC LOR                \ so jump to LOR to set the C flag and return from the
+\                        \ subroutine
+\
+\ CMP #'4'               \ If A >= ASCII "4", then it is not a valid drive
+\                        \ number, and this CMP sets the C flag, otherwise it is
+\                        \ a valid drive number in the range 0-3, so clear it
+\
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -23008,11 +23008,11 @@ ENDIF
 \
 \ ******************************************************************************
 
-.GTNMES
+\.GTNMES
 
- JSR GTNME              \ Fetch the name of a commander file to save or load
+\ JSR GTNME              \ Fetch the name of a commander file to save or load
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -23029,18 +23029,18 @@ ENDIF
 \
 \ ******************************************************************************
 
-.SPS1
-
- LDX #0                 \ Copy the two high bytes of the planet's x-coordinate
- JSR SPS3               \ into K3(2 1 0), separating out the sign bit into K3+2
-
- LDX #3                 \ Copy the two high bytes of the planet's y-coordinate
- JSR SPS3               \ into K3(5 4 3), separating out the sign bit into K3+5
-
- LDX #6                 \ Copy the two high bytes of the planet's z-coordinate
- JSR SPS3               \ into K3(8 7 6), separating out the sign bit into K3+8
-
-                        \ Fall through into TAS2 to build XX15 from K3
+\.SPS1
+\
+\ LDX #0                 \ Copy the two high bytes of the planet's x-coordinate
+\ JSR SPS3               \ into K3(2 1 0), separating out the sign bit into K3+2
+\
+\ LDX #3                 \ Copy the two high bytes of the planet's y-coordinate
+\ JSR SPS3               \ into K3(5 4 3), separating out the sign bit into K3+5
+\
+\ LDX #6                 \ Copy the two high bytes of the planet's z-coordinate
+\ JSR SPS3               \ into K3(8 7 6), separating out the sign bit into K3+8
+\
+\                        \ Fall through into TAS2 to build XX15 from K3
 
 \ ******************************************************************************
 \
@@ -23098,61 +23098,61 @@ ENDIF
 \
 \ ******************************************************************************
 
-.TAS2
+\.TAS2
 
- LDA K3                 \ OR the three low bytes and 1 to get a byte that has
- ORA K3+3               \ a 1 wherever any of the three low bytes has a 1
- ORA K3+6               \ (as well as always having bit 0 set), and store in
- ORA #1                 \ K3+9
- STA K3+9
+\ LDA K3                 \ OR the three low bytes and 1 to get a byte that has
+\ ORA K3+3               \ a 1 wherever any of the three low bytes has a 1
+\ ORA K3+6               \ (as well as always having bit 0 set), and store in
+\ ORA #1                 \ K3+9
+\ STA K3+9
 
- LDA K3+1               \ OR the three high bytes to get a byte in A that has a
- ORA K3+4               \ 1 wherever any of the three high bytes has a 1
- ORA K3+7
+\ LDA K3+1               \ OR the three high bytes to get a byte in A that has a
+\ ORA K3+4               \ 1 wherever any of the three high bytes has a 1
+\ ORA K3+7
 
                         \ (A K3+9) now has a 1 wherever any of the 16-bit
                         \ values in K3 has a 1
-.TAL2
+\.TAL2
 
- ASL K3+9               \ Shift (A K3+9) to the left, so bit 7 of the high byte
- ROL A                  \ goes into the C flag
+\ ASL K3+9               \ Shift (A K3+9) to the left, so bit 7 of the high byte
+\ ROL A                  \ goes into the C flag
 
- BCS TA2                \ If the left shift pushed a 1 out of the end, then we
+\ BCS TA2                \ If the left shift pushed a 1 out of the end, then we
                         \ know that at least one of the coordinates has a 1 in
                         \ this position, so jump to TA2 as we can't shift the
                         \ values in K3 any further to the left
 
- ASL K3                 \ Shift K3(1 0), the x-coordinate, to the left
- ROL K3+1
+\ ASL K3                 \ Shift K3(1 0), the x-coordinate, to the left
+\ ROL K3+1
 
- ASL K3+3               \ Shift K3(4 3), the y-coordinate, to the left
- ROL K3+4
+\ ASL K3+3               \ Shift K3(4 3), the y-coordinate, to the left
+\ ROL K3+4
 
- ASL K3+6               \ Shift K3(6 7), the z-coordinate, to the left
- ROL K3+7
+\ ASL K3+6               \ Shift K3(6 7), the z-coordinate, to the left
+\ ROL K3+7
 
- BCC TAL2               \ Jump back to TAL2 to do another shift left (this BCC
+\ BCC TAL2               \ Jump back to TAL2 to do another shift left (this BCC
                         \ is effectively a JMP as we know bit 7 of K3+7 is not a
                         \ 1, as otherwise bit 7 of A would have been a 1 and we
                         \ would have taken the BCS above)
 
-.TA2
+\.TA2
 
- LDA K3+1               \ Fetch the high byte of the x-coordinate from our left-
- LSR A                  \ shifted K3, shift it right to clear bit 7, stick the
- ORA K3+2               \ sign bit in there from the x_sign part of K3, and
- STA XX15               \ store the resulting signed 8-bit x-coordinate in XX15
+\ LDA K3+1               \ Fetch the high byte of the x-coordinate from our left-
+\ LSR A                  \ shifted K3, shift it right to clear bit 7, stick the
+\ ORA K3+2               \ sign bit in there from the x_sign part of K3, and
+\ STA XX15               \ store the resulting signed 8-bit x-coordinate in XX15
 
- LDA K3+4               \ Fetch the high byte of the y-coordinate from our left-
- LSR A                  \ shifted K3, shift it right to clear bit 7, stick the
- ORA K3+5               \ sign bit in there from the y_sign part of K3, and
- STA XX15+1             \ store the resulting signed 8-bit y-coordinate in
+\ LDA K3+4               \ Fetch the high byte of the y-coordinate from our left-
+\ LSR A                  \ shifted K3, shift it right to clear bit 7, stick the
+\ ORA K3+5               \ sign bit in there from the y_sign part of K3, and
+\ STA XX15+1             \ store the resulting signed 8-bit y-coordinate in
                         \ XX15+1
 
- LDA K3+7               \ Fetch the high byte of the z-coordinate from our left-
- LSR A                  \ shifted K3, shift it right to clear bit 7, stick the
- ORA K3+8               \ sign bit in there from the z_sign part of K3, and
- STA XX15+2             \ store the resulting signed 8-bit  z-coordinate in
+\ LDA K3+7               \ Fetch the high byte of the z-coordinate from our left-
+\ LSR A                  \ shifted K3, shift it right to clear bit 7, stick the
+\ ORA K3+8               \ sign bit in there from the z_sign part of K3, and
+\ STA XX15+2             \ store the resulting signed 8-bit  z-coordinate in
                         \ XX15+2
 
                         \ Now we have a signed 8-bit version of the vector K3 in
@@ -23781,34 +23781,34 @@ INCLUDE "1-source-files/main-sources/elite-pet-keyboard.asm"
 \
 \ ******************************************************************************
 
-.DKJ1
+\.DKJ1
 
- LDA VIA+&40            \ Read 6522 System VIA input register IRB (SHEILA &40)
+\ LDA VIA+&40            \ Read 6522 System VIA input register IRB (SHEILA &40)
 
- TAX                    \ This instruction doesn't seem to have any effect, as
+\ TAX                    \ This instruction doesn't seem to have any effect, as
                         \ X is overwritten in a few instructions
 
- AND #%00010000         \ Bit 4 of IRB (PB4) is clear if joystick 1's fire
+\ AND #%00010000         \ Bit 4 of IRB (PB4) is clear if joystick 1's fire
                         \ button is pressed, otherwise it is set, so AND'ing
                         \ the value of IRB with %10000 extracts this bit
 
- EOR #%00010000         \ Flip bit 4 so that it's set if the fire button has
- STA KY7                \ been pressed, and store the result in the keyboard
+\ EOR #%00010000         \ Flip bit 4 so that it's set if the fire button has
+\ STA KY7                \ been pressed, and store the result in the keyboard
                         \ logger at location KY7, which is also where the A key
                         \ (fire lasers) key is logged
 
- LDX #1                 \ Call DKS2 to fetch the value of ADC channel 1 (the
- JSR DKS2               \ joystick X value) into (A X), and OR A with 1. This
- ORA #1                 \ ensures that the high byte is at least 1, and then we
- STA JSTX               \ store the result in JSTX
+\ LDX #1                 \ Call DKS2 to fetch the value of ADC channel 1 (the
+\ JSR DKS2               \ joystick X value) into (A X), and OR A with 1. This
+\ ORA #1                 \ ensures that the high byte is at least 1, and then we
+\ STA JSTX               \ store the result in JSTX
 
- LDX #2                 \ Call DKS2 to fetch the value of ADC channel 2 (the
- JSR DKS2               \ joystick Y value) into (A X), and EOR A with JSTGY.
- EOR JSTGY              \ JSTGY will be &FF if the game is configured to
- STA JSTY               \ reverse the joystick Y channel, so this EOR does
+\ LDX #2                 \ Call DKS2 to fetch the value of ADC channel 2 (the
+\ JSR DKS2               \ joystick Y value) into (A X), and EOR A with JSTGY.
+\ EOR JSTGY              \ JSTGY will be &FF if the game is configured to
+\ STA JSTY               \ reverse the joystick Y channel, so this EOR does
                         \ exactly that, and then we store the result in JSTY
 
- JMP DK4                \ We are done scanning the joystick flight controls,
+\ JMP DK4                \ We are done scanning the joystick flight controls,
                         \ so jump to DK4 to scan for other keys, using a tail
                         \ call so we can return from the subroutine there
 
@@ -33323,45 +33323,45 @@ ENDMACRO
 \
 \ ******************************************************************************
 
-IF _STH_DISC OR _SRAM_DISC
-
- EQUB &45, &4E          \ These bytes appear to be unused
- EQUB &44, &2D
- EQUB &45, &4E
- EQUB &44, &2D
- EQUB &45, &4E
- EQUB &44, &52
- EQUB &50, &53
- EQUB &00, &8E
- EQUB &11, &D8
- EQUB &00, &00
- EQUB &06, &56
- EQUB &52, &49
- EQUB &45
-
- EQUB &E6               \ This checksum is at location &55FF, and is checked in
-                        \ the LOAD routine in elite-loader3.asm
-
-ELIF _IB_DISC
-
- EQUB &45, &4E          \ These bytes appear to be unused
- EQUB &44, &2D
- EQUB &45, &4E
- EQUB &44, &2D
- EQUB &45, &4E
- EQUB &44, &8E
- EQUB &13, &1C
- EQUB &00, &00
- EQUB &73, &56
- EQUB &52, &49
- EQUB &53, &00
- EQUB &8E, &13
- EQUB &34
-
- EQUB &B3               \ This checksum is at location &55FF, and is checked in
-                        \ the LOAD routine in elite-loader3.asm
-
-ENDIF
+\IF _STH_DISC OR _SRAM_DISC
+\
+\ EQUB &45, &4E          \ These bytes appear to be unused
+\ EQUB &44, &2D
+\ EQUB &45, &4E
+\ EQUB &44, &2D
+\ EQUB &45, &4E
+\ EQUB &44, &52
+\ EQUB &50, &53
+\ EQUB &00, &8E
+\ EQUB &11, &D8
+\ EQUB &00, &00
+\ EQUB &06, &56
+\ EQUB &52, &49
+\ EQUB &45
+\
+\ EQUB &E6               \ This checksum is at location &55FF, and is checked in
+\                        \ the LOAD routine in elite-loader3.asm
+\
+\ELIF _IB_DISC
+\
+\ EQUB &45, &4E          \ These bytes appear to be unused
+\ EQUB &44, &2D
+\ EQUB &45, &4E
+\ EQUB &44, &2D
+\ EQUB &45, &4E
+\ EQUB &44, &8E
+\ EQUB &13, &1C
+\ EQUB &00, &00
+\ EQUB &73, &56
+\ EQUB &52, &49
+\ EQUB &53, &00
+\ EQUB &8E, &13
+\ EQUB &34
+\
+\ EQUB &B3               \ This checksum is at location &55FF, and is checked in
+\                        \ the LOAD routine in elite-loader3.asm
+\
+\ENDIF
 
 \ ******************************************************************************
 \

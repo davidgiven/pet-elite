@@ -4193,16 +4193,16 @@ ENDIF
 \
 \ ******************************************************************************
 
-.TWOS
+\.TWOS
 
- EQUB %10000000
- EQUB %01000000
- EQUB %00100000
- EQUB %00010000
- EQUB %00001000
- EQUB %00000100
- EQUB %00000010
- EQUB %00000001
+\ EQUB %10000000
+\ EQUB %01000000
+\ EQUB %00100000
+\ EQUB %00010000
+\ EQUB %00001000
+\ EQUB %00000100
+\ EQUB %00000010
+\ EQUB %00000001
 
 \ ******************************************************************************
 \
@@ -4219,16 +4219,16 @@ ENDIF
 \
 \ ******************************************************************************
 
-.TWOS2
+\.TWOS2
 
- EQUB %11000000
- EQUB %01100000
- EQUB %00110000
- EQUB %00011000
- EQUB %00001100
- EQUB %00000110
- EQUB %00000011
- EQUB %00000011
+\ EQUB %11000000
+\ EQUB %01100000
+\ EQUB %00110000
+\ EQUB %00011000
+\ EQUB %00001100
+\ EQUB %00000110
+\ EQUB %00000011
+\ EQUB %00000011
 
 \ ******************************************************************************
 \
@@ -4252,13 +4252,13 @@ ENDIF
 \
 \ ******************************************************************************
 
-.CTWOS
+\.CTWOS
 
- EQUB %10001000
- EQUB %01000100
- EQUB %00100010
- EQUB %00010001
- EQUB %10001000
+\ EQUB %10001000
+\ EQUB %01000100
+\ EQUB %00100010
+\ EQUB %00010001
+\ EQUB %10001000
 
 \ ******************************************************************************
 \
@@ -4362,11 +4362,11 @@ ENDIF
 \
 \ ******************************************************************************
 
-.FLKB
+\.FLKB
 
- LDA #15                \ Call OSBYTE with A = 15 and Y <> 0 to flush the input
- TAX                    \ buffers (i.e. flush the operating system's keyboard
- JMP OSBYTE             \ buffer) and return from the subroutine using a tail
+\ LDA #15                \ Call OSBYTE with A = 15 and Y <> 0 to flush the input
+\ TAX                    \ buffers (i.e. flush the operating system's keyboard
+\ JMP OSBYTE             \ buffer) and return from the subroutine using a tail
                         \ call
 
 \ ******************************************************************************
@@ -4777,15 +4777,15 @@ ENDIF
 \
 \ ******************************************************************************
 
-.TWFL
+\.TWFL
 
- EQUB %10000000
- EQUB %11000000
- EQUB %11100000
- EQUB %11110000
- EQUB %11111000
- EQUB %11111100
- EQUB %11111110
+\ EQUB %10000000
+\ EQUB %11000000
+\ EQUB %11100000
+\ EQUB %11110000
+\ EQUB %11111000
+\ EQUB %11111100
+\ EQUB %11111110
 
 \ ******************************************************************************
 \
@@ -4805,16 +4805,16 @@ ENDIF
 \
 \ ******************************************************************************
 
-.TWFR
+\.TWFR
 
- EQUB %11111111
- EQUB %01111111
- EQUB %00111111
- EQUB %00011111
- EQUB %00001111
- EQUB %00000111
- EQUB %00000011
- EQUB %00000001
+\ EQUB %11111111
+\ EQUB %01111111
+\ EQUB %00111111
+\ EQUB %00011111
+\ EQUB %00001111
+\ EQUB %00000111
+\ EQUB %00000011
+\ EQUB %00000001
 
 \ ******************************************************************************
 \
@@ -12524,7 +12524,7 @@ ENDIF
 \
 \ ******************************************************************************
 
-{
+\{
 
                         \ --- Mod: Code removed for flicker-free ships: ------->
 
@@ -12552,8 +12552,8 @@ ENDIF
 
                         \ --- End of removed code ----------------------------->
 
- RTS
-}
+\ RTS
+\}
 
 \ ******************************************************************************
 \
@@ -12664,10 +12664,10 @@ ENDIF
 \
 \ ******************************************************************************
 
-.MUT3
+\.MUT3
 
- LDX ALP1               \ Set P = ALP1, though this gets overwritten by the
- STX P                  \ following, so this has no effect
+\ LDX ALP1               \ Set P = ALP1, though this gets overwritten by the
+\ STX P                  \ following, so this has no effect
 
                         \ Fall through into MUT2 to do the following:
                         \
@@ -13979,17 +13979,17 @@ ENDIF
 \
 \ ******************************************************************************
 
- EQUB &8C, &E7
- EQUB &8D, &ED
- EQUB &8A, &E6
- EQUB &C1, &C8
- EQUB &C8, &8B
- EQUB &E0, &8A
- EQUB &E6, &D6
- EQUB &C5, &C6
- EQUB &C1, &CA
- EQUB &95, &9D
- EQUB &9C, &97
+\ EQUB &8C, &E7
+\ EQUB &8D, &ED
+\ EQUB &8A, &E6
+\ EQUB &C1, &C8
+\ EQUB &C8, &8B
+\ EQUB &E0, &8A
+\ EQUB &E6, &D6
+\ EQUB &C5, &C6
+\ EQUB &C1, &CA
+\ EQUB &95, &9D
+\ EQUB &9C, &97
 
 \ ******************************************************************************
 \
@@ -17940,9 +17940,9 @@ ENDIF
 \
 \ ******************************************************************************
 
-.GCASH
+\.GCASH
 
- JSR MULTU              \ Call MULTU to calculate (A P) = P * Q
+\ JSR MULTU              \ Call MULTU to calculate (A P) = P * Q
 
 \ ******************************************************************************
 \
@@ -19714,7 +19714,7 @@ ENDIF
 \
 \ ******************************************************************************
 
-.DET1
+\.DET1
 
 \ LDA #6                 \ Set A to 6 so we can update 6845 register R6 below
 \
@@ -19726,7 +19726,7 @@ ENDIF
 \
 \ CLI                    \ Re-enable interrupts
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
@@ -20946,18 +20946,18 @@ ENDIF
 \
 \ ******************************************************************************
 
-.BULB
+\.BULB
 
- STA SC                 \ Store the low byte of the screen address in SC
+\ STA SC                 \ Store the low byte of the screen address in SC
 
- STX P+1                \ Set P(2 1) = (Y X)
- STY P+2
+\ STX P+1                \ Set P(2 1) = (Y X)
+\ STY P+2
 
- LDA #&7D               \ Set A to the high byte of the screen address, which is
+\ LDA #&7D               \ Set A to the high byte of the screen address, which is
                         \ &7D as the bulbs are both in the character row from
                         \ &7D00 to &7DFF
 
- JMP RREN               \ Call RREN to print the character definition pointed to
+\ JMP RREN               \ Call RREN to print the character definition pointed to
                         \ by P(2 1) at the screen address pointed to by (A SC),
                         \ returning from the subroutine using a tail call
 
@@ -20980,11 +20980,11 @@ ENDIF
 \
 \ ******************************************************************************
 
-.ECBT
+\.ECBT
 
- EQUB %11100000         \ x x x .
- EQUB %11100000         \ x x x .
- EQUB %10000000         \ x . . .
+\ EQUB %11100000         \ x x x .
+\ EQUB %11100000         \ x x x .
+\ EQUB %10000000         \ x . . .
                         \ x x x .
                         \ x x x .
                         \ x . . .
@@ -21007,16 +21007,16 @@ ENDIF
 \
 \ ******************************************************************************
 
-.SPBT
+\.SPBT
 
- EQUB %11100000         \ x x x .
- EQUB %11100000         \ x x x .
- EQUB %10000000         \ x . . .
- EQUB %11100000         \ x x x .
- EQUB %11100000         \ x x x .
- EQUB %00100000         \ . . x .
- EQUB %11100000         \ x x x .
- EQUB %11100000         \ x x x .
+\ EQUB %11100000         \ x x x .
+\ EQUB %11100000         \ x x x .
+\ EQUB %10000000         \ x . . .
+\ EQUB %11100000         \ x x x .
+\ EQUB %11100000         \ x x x .
+\ EQUB %00100000         \ . . x .
+\ EQUB %11100000         \ x x x .
+\ EQUB %11100000         \ x x x .
 
 \ ******************************************************************************
 \
@@ -26565,14 +26565,14 @@ ENDIF
 \
 \ ******************************************************************************
 
-.ZES1
+\.ZES1
 
- STX SC+1               \ We want to zero-fill page X, so store this in the
+\ STX SC+1               \ We want to zero-fill page X, so store this in the
                         \ high byte of SC, so SC(1 0) is now pointing to page X
 
- LDA #0                 \ If we set Y = SC = 0 and fall through into ZES2
- STA SC                 \ below, then we will zero-fill 255 bytes starting from
- TAY                    \ SC, then SC + 255, and then the rest of the page - in
+\ LDA #0                 \ If we set Y = SC = 0 and fall through into ZES2
+\ STA SC                 \ below, then we will zero-fill 255 bytes starting from
+\ TAY                    \ SC, then SC + 255, and then the rest of the page - in
                         \ other words, we will zero-fill the whole of page X
 
 \ ******************************************************************************
@@ -26604,18 +26604,18 @@ ENDIF
 \
 \ ******************************************************************************
 
-.ZES2
+\.ZES2
 
-.ZEL1
+\.ZEL1
 
- STA (SC),Y             \ Zero the Y-th byte of the block pointed to by SC,
+\ STA (SC),Y             \ Zero the Y-th byte of the block pointed to by SC,
                         \ so that's effectively the Y-th byte before SC
 
- DEY                    \ Decrement the loop counter
+\ DEY                    \ Decrement the loop counter
 
- BNE ZEL1               \ Loop back to zero the next byte
+\ BNE ZEL1               \ Loop back to zero the next byte
 
- RTS                    \ Return from the subroutine
+\ RTS                    \ Return from the subroutine
 
 \ ******************************************************************************
 \
