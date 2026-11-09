@@ -2235,7 +2235,7 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 
  JSR HALL               \ Show the ship hangar
 
- LDY #44                \ Wait for 44/50 of a second (0.88 seconds)
+ LDY #200/50          \ Wait for two seconds
  JSR DELAY
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
@@ -8174,10 +8174,10 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 
 .HALL
 
- JSR UNWISE             \ Call UNWISE to switch the main line-drawing routine
-                        \ between EOR and OR logic (in this case, switching it
-                        \ to OR logic so that it overwrites anything that's
-                        \ on-screen)
+\ JSR UNWISE             \ Call UNWISE to switch the main line-drawing routine
+\                        \ between EOR and OR logic (in this case, switching it
+\                        \ to OR logic so that it overwrites anything that's
+\                        \ on-screen)
 
  LDA #0                 \ Clear the top part of the screen, draw a white border,
  JSR TT66               \ and set the current view type in QQ11 to 0 (space
@@ -8600,15 +8600,7 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
  BNE HAL7               \ If we did not plot the sixel because there is already
                         \ something on-screen, jump to HAL7
 
- INY                    \ Move to the next sixel down
-
- JSR PlotSixelClipped   \ Plot the sixel at (X, Y)
-
- INY                    \ Move to the next sixel down
-
- JSR PlotSixelClipped   \ Plot the sixel at (X, Y)
-
- INY                    \ Move to the next character row down
+ INY                    \ Move to the next sixel row down
 
  CPY #30                \ If we have not yet reached the horizon halfway down
  BCC HAL6               \ the space view, loop back to HAL6 to keep drawing
@@ -8868,13 +8860,9 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
                         \ something on-screen, jump to HA3 to return from the
                         \ subroutine
 
- INX                    \ Move to the next sixel to the right
-
- JSR PlotSixelClipped   \ Plot the sixel at (X, Y)
-
  INX                    \ Move to the next character column to the right
 
- CPX #39                \ If we have not yet reached the right edge of the
+ CPX #64                \ If we have not yet reached the right edge of the
  BCC HAS2               \ screen, loop back to HAS2 to keep drawing
 
                         \ --- End of replacement ------------------------------>
@@ -8950,10 +8938,6 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
  BNE HA3                \ If we did not plot the sixel because there is already
                         \ something on-screen, jump to HA3 to return from the
                         \ subroutine
-
- DEX                    \ Move to the next sixel to the left
-
- JSR PlotSixelClipped   \ Plot the sixel at (X, Y)
 
  DEX                    \ Move to the next character column to the left
 

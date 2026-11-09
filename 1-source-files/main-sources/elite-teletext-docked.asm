@@ -48,15 +48,11 @@
 \ ******************************************************************************
 
 .PlotSixelIfEmpty
-
- CPX #MODE7_LOW_X       \ If the sixel is off-screen, jump to empt2 to return
- BCC empt2              \ from the subroutine with the Z flag clear
- CPY #MODE7_LOW_Y
- BCC empt2
+{
  CPX #MODE7_HIGH_X
- BCS empt2
+ BCS clip1
  CPY #MODE7_HIGH_Y
- BCS empt2
+ BCS clip1
 
  CLC                    \ Set SC(1 0) to the screen address of the character
  LDA xSixel,X           \ block, starting with the low byte
@@ -67,14 +63,7 @@
  ADC #HI(MODE7_VRAM)
  STA SCH
 
- LDA (SC),Y             \ Fetch the current character from screen memory
-
- BNE empt1              \ If it is non-zero, i.e. there is something already
-                        \ there, jump to empt1 to return from the subroutine
-                        \ with the Z flag clear
-
  STX P
-
 
  LDA ySixelChar,Y       \ Get the sixel character with the relevant row
                         \ pre-filled for the y-coordinate in Y
@@ -82,25 +71,29 @@
  AND xSixelChar,X       \ Apply the sixel character with the relevant column
                         \ pre-filled for the x-coordinate in X, so the result
                         \ is a sixel character with the sixel at (x, y) filled
-
  STA Q
+
  LDA (SC),Y
  TAX
  LDA screenToBitfield, X
- ORA Q
+ BMI nodraw
+ ORA Q                  \ EOR the sixel into the screen, flipping whatever is
+                        \ already there
+ cmp screenToBitfield, X
+ beq nothing_changed
  TAX
  LDA bitfieldToScreen, X
  STA (SC),Y
 
+.nodraw
  LDX P
- LDA #0                 \ Set A = 0 so we return with the Z flag set
 
-.empt1
+.clip1
+ lda #0                 \ return with Z
+ rts
 
- RTS                    \ Return from the subroutine
-
-.empt2
-
- LDA #1                 \ Set A = 1 so we return with the Z flag clear
-
- RTS                    \ Return from the subroutine
+.nothing_changed
+ ldx P
+ lda #1                 \ return with !Z
+ rts
+}
