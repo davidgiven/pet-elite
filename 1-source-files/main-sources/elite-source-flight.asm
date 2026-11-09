@@ -24570,8 +24570,8 @@ ENDIF
  EQUB &10, &F1, &07, &1A    \ 24 - We died 2 / We made a hit or kill 1
  EQUB &03, &F1, &BC, &01    \ 32 - Short, high beep
  EQUB &13, &F4, &0C, &08    \ 40 - Long, low beep
- EQUB &10, &F1, &06, &0C    \ 48 - Missile launched / Ship launched from station
- EQUB &10, &02, &60, &10    \ 56 - Hyperspace drive engaged
+ EQUB &10, &F1, &06, &30    \ 48 - Missile launched / Ship launched from station
+ EQUB &10, &02, &60, &30    \ 56 - Hyperspace drive engaged
  EQUB &13, &04, &C2, &FF    \ 64 - E.C.M. on
  EQUB &13, &00, &00, &00    \ 72 - E.C.M. off
 

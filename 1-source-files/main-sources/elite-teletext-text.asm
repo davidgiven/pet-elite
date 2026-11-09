@@ -344,7 +344,7 @@
  LDA QQ11               \ If this not the space view, jump to mess2 as there is
  BNE mess2              \ no message bar
 
- LDA #&20               \ Set A = space so we can zero screen memory
+ LDA #&62               \ Set A = bottom two sixels set
 
  LDX #3                 \ Set a byte counter in X
 
