@@ -1018,6 +1018,7 @@ endmacro
 .stop_sound
     lda #0
     sta PET_VIA_ACR
+    sta sound_cpitch
     rts
 
 ; Pokes the VIA to play noise of pitch A.

@@ -2235,7 +2235,7 @@ SHIP_MISSILE = &7F00   \ The address of the missile ship blueprint, as set in
 
  JSR HALL               \ Show the ship hangar
 
- LDY #200/50          \ Wait for two seconds
+ LDY #200/2           \ Wait for two seconds
  JSR DELAY
 
                         \ --- Mod: Code added for Teletext Elite: ------------->
