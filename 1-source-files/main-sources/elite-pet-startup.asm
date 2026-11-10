@@ -11,14 +11,7 @@ INCLUDE "1-source-files/main-sources/elite-pet.inc"
 .ptr                    skip 2  ; address of file being worked on
 .ieee_has_buffered_char skip 1  ; whether the IEEE layer has a buffered char
 .ieee_buffered_char     skip 1  ; the actual buffered char
-.sound_channel          skip 1  ; BBC Micro sound channel (0 for noise)
-.sound_envelope         skip 1  ; BBC Micro envelope (negative for tone)
-.sound_pitch            skip 1  ; BBC Micro pitch value
-.sound_noise            skip 1  ; random noise value
-.sound_cpitch           skip 1  ; Pitch actually being played
-.sound_duration         skip 1  ; number of ticks in the current sound
-.sound_phase            skip 1  ; when processing an envelope, this is the phase we're in
-.sound_ticks            skip 1  ; tick count in the current sound
+.sound_cpitch           skip 4  ; Pitch actually being played
 
 ; Used internally by the decompressor
 .zx0_offset             skip 2
@@ -374,25 +367,18 @@ basic_start = &03ff
     ldy #0*2                    ; SOUND parameters are words
     lda (cmdblock), y           ; we only want the channel
     and #&0f                    
+    tax                         ; used below
 
-    ; If there's a sound playing on channel 0, don't preempt it.
-
-    {
-        ldx sound_envelope
-        beq skip
-        ldx sound_channel
-        beq nosound
-        .skip
-    }
-    sta sound_channel
     iny
     iny
     lda (cmdblock), y
-    sta sound_envelope
+    sta sound_envelope, x
     iny
     iny
     lda (cmdblock), y
-    sta sound_pitch
+    sec
+    sbc #48                     ; apply 48 bias (we can't play lower than that)
+    sta sound_pitch, x
     iny
     iny
     lda (cmdblock), y
@@ -404,12 +390,12 @@ basic_start = &03ff
         lda #1
     .skip
     }
-    sta sound_duration
+    sta sound_duration, x
 
     lda #0                          ; clear phase workspace
-    sta sound_phase
-    sta sound_ticks
-    sta sound_noise
+    sta sound_phase, x
+    sta sound_ticks, x
+    sta sound_noise, x
 
     ; The sound will start playing at the next timer interrupt.
 
@@ -844,6 +830,7 @@ endmacro
     jmp ieee_computer_idle
 
 .irq
+{
     lda PET_PIA1_PB
     
     ; Do the things the Elite core expects.
@@ -858,19 +845,60 @@ endmacro
         .skip
     }
 
-    ; Do sound processing.
+    ; Do sound envelope processing.
 
     {
-        lda sound_channel
-        bne skip                ; not the noise channel?
+        ldx #3
+    .loop
+        jsr process_channel
+        dex
+        bpl loop
+    }
 
+    ; Now actually play the sound. Lower channel numbers have priority.
+
+    {
+        lda sound_envelope+0
+        beq skip
+        jsr play_noise
+        jmp exit
     .skip
     }
 
+    {
+        ldx #1
+    .loop
+        lda sound_envelope, x       ; scan channels looking for a playing sound
+        bne found
+        inx
+        cpx #4
+        bne loop
+
+        jsr stop_sound              ; oh no, nothing's playing
+        beq skip
+    
+    .found
+        lda sound_pitch, x
+        jsr play_sound
+    .skip
+    }
+
+.exit
+    pla
+    tay
+    pla
+    tax
+    pla
+    rti
+}
+
+; Processes the channel in X.
+.process_channel
+{
     ; If this is an envelope, do envelope processing.
 
     {
-        lda sound_envelope
+        lda sound_envelope, x
         beq nosound             ; skip if 0 (no sound)
         bmi solidtone           ; skip if negative (solid tone)
 
@@ -878,15 +906,15 @@ endmacro
         clc
         asl a
         asl a
-        adc sound_envelope
-        adc sound_envelope      ; a = sound_envelope*6
-        adc sound_phase
-        tax
+        adc sound_envelope, x
+        adc sound_envelope, x   ; a = sound_envelope*6
+        adc sound_phase, x
+        tay
 
         ; Fetch the pitch delta for this phase. If it's 0, go to the next phase.
 
         {
-            lda envelope1+0, x
+            lda envelope1+0, y
             bne skip
 
             jsr advance_to_next_phase
@@ -894,70 +922,68 @@ endmacro
         .skip
         }
 
-        ; Adjust the pitch.
+        ; Adjust the pitch, using modulus arithmetic to avoid pitches below 48
+        ; (which we can't play).
 
-        clc
-        adc sound_pitch
-        sta sound_pitch
+        {
+            clc
+            adc sound_pitch, x
+            bcs overflow
+            cmp #256-48       ; rolled over?
+            bcc skip
+        .overflow
+            sbc #256-48         ; carry is already set
+        .skip
+            sta sound_pitch, x
+        }
 
         ; Check for the end of the phase.
 
         {
-            ldy sound_ticks
-            iny
-            sty sound_ticks
-            tya
-            cmp envelope1+3, x
+            lda sound_ticks, x
+            clc
+            adc #1
+            sta sound_ticks, x
+            cmp envelope1+3, y
             bne skip
             jsr advance_to_next_phase
         .skip
         }
     
     .solidtone
-        lda sound_pitch
-        jsr play_sound
-
         ; Decrement the duration.
 
         {
-            ldx sound_duration
-            bne skip                ; check for zero duration
+            lda sound_duration, x
+            bne playing
+            lda #0
+            sta sound_envelope, x   ; duration is 0, silence this channel
 
-            lda #0                  ; duration hit zero, turn the sound off
-            sta PET_VIA_ACR
-            sta sound_envelope
-
-            .skip
-        }
-
-        {
-            beq skip                ; Z from the ldx or the lda above
-            cpx #&ff                ; infinite duration
+        .playing
             beq skip
-            dec sound_duration
-            .skip
+            cmp #&ff                ; infinite duration
+            beq skip
+            dec sound_duration, x
+        .skip
         }
     .nosound
     }
-
-    pla
-    tay
-    pla
-    tax
-    pla
-    rti
+    rts
+}
 
 .advance_to_next_phase
 {
-    ldx #0              ; clear phase tick count
-    stx sound_ticks
+    lda #0              ; clear phase tick count
+    sta sound_ticks, x
 
-    ldx sound_phase
-    inx
-    cpx #3
+    lda sound_phase, x
+    clc
+    adc #1
+    cmp #3
     bne skip
-    ldx #0
+    lda #0
 .skip
+    sta sound_phase, x
     rts
 }
 
@@ -968,8 +994,6 @@ endmacro
     ; or the sound system was previously turned off, or we're playing
     ; noise.
 
-    ldx sound_channel
-    beq play_noise
     ldx PET_VIA_ACR
     beq really_playing
     cmp sound_cpitch
@@ -990,16 +1014,23 @@ endmacro
     rts
 }
 
+; Pokes the VIA to stop playing sound.
+.stop_sound
+    lda #0
+    sta PET_VIA_ACR
+    rts
+
 ; Pokes the VIA to play noise of pitch A.
 .play_noise
 {
-    ldy sound_noise             ; Check the noise random number.
-    bne noinit
+    ldy sound_noise
+    cmp sound_cpitch
+    beq noinit                  ; don't initialise unless the pitch is changed
 
     ; Figure out the 'pitch' of the noise.
 
+    sta sound_cpitch
     jsr compute_via_sound_values
-    sty sound_noise
     sta PET_VIA_T2_LO
 
 .noinit
@@ -1029,12 +1060,6 @@ endmacro
     ; Compute shift register and timer values.
 
     {
-        cmp #48                 ; lowest possible sound
-        bcs higher
-        lda #48
-        .higher
-    }
-    {
         ldy #&0f
         cmp #96
         bcc lower
@@ -1045,13 +1070,19 @@ endmacro
         .lower
     }
 
-    sec
-    sbc #48
     tax
     lda sound_table, x
     rts
 }
 
+; Tables describing the current state of the four BBC Micro channels.
+
+.sound_envelope         skip 4  ; BBC Micro envelope (negative for tone)
+.sound_pitch            skip 4  ; BBC Micro pitch value - 48
+.sound_noise            skip 4  ; random noise value
+.sound_duration         skip 4  ; number of ticks in the current sound
+.sound_phase            skip 4  ; when processing an envelope, this is the phase we're in
+.sound_ticks            skip 4  ; tick count in the current sound
 ;   * Envelope 1 is the sound of our own laser firing
 ;
 ;   * Envelope 2 is the sound of lasers hitting us, or hyperspace
