@@ -11656,13 +11656,13 @@ BNE BRPS               \ Jump to BRP via BRPS to print the extended token in A
 
                         \ --- And replaced by: -------------------------------->
 
- LDA PATG               \ If PATG = &FF, skip the following, so the Galfax
- BNE BOS1               \ header is shown in Sentence Case
-
- LDX #0                 \ Set QQ17 = 0 to switch to ALL CAPS
- STX QQ17
-
-.BOS1
+\ LDA PATG               \ If PATG = &FF, skip the following, so the Galfax
+\ BNE BOS1               \ header is shown in Sentence Case
+\
+\ LDX #0                 \ Set QQ17 = 0 to switch to ALL CAPS
+\ STX QQ17
+\
+\.BOS1
 
  RTS                    \ Return from the subroutine
 
@@ -15772,18 +15772,6 @@ BNE BRPS               \ Jump to BRP via BRPS to print the extended token in A
  LDA #167               \ Print recursive token 7 ("{current system name} MARKET
  JSR NLIN3              \ PRICES") and draw a horizontal line at pixel row 19
                         \ to box in the title
-
-                        \ --- Mod: Code added for Teletext Elite: ------------->
-
- JSR AlignGalfaxHeader  \ Right-align the page title in the Galfax header
-
- LDX PATG               \ If PATG = 0, skip the following, so the Galfax header
- BEQ P%+6               \ resets to capitals for the column headers
-
- LDX #0                 \ Set QQ17 = 0 to switch to ALL CAPS
- STX QQ17
-
-                        \ --- End of added code ------------------------------->
 
  LDA #3                 \ Move the text cursor to row 3
  STA YC

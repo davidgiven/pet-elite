@@ -17257,41 +17257,12 @@ ENDIF
 
                         \ --- Mod: Code removed for Teletext Elite: ----------->
 
-\LDA #5                 \ Move the text cursor to column 5
-\STA XC
-
-                        \ --- And replaced by: -------------------------------->
-
- LDA #5                 \ Set A so we move the text cursor to column 5 by
-                        \ default
-
- LDX PATG               \ If PATG = 0, skip the following, so the Galfax header
- BEQ P%+4               \ is only shown when the author credits are enabled (so
-                        \ it can be toggled by pausing the game and pressing
-                        \ "X")
-
- LDA #14                \ Set A so we move the text cursor to column 14 for the
-                        \ Galfax header
-
- STA XC                 \ Move the text cursor to the correct position
-
-                        \ --- End of replacement ------------------------------>
+LDA #5                 \ Move the text cursor to column 5
+STA XC
 
  LDA #167               \ Print recursive token 7 ("{current system name} MARKET
  JSR NLIN3              \ PRICES") and draw a horizontal line at pixel row 19
                         \ to box in the title
-
-                        \ --- Mod: Code added for Teletext Elite: ------------->
-
- JSR AlignGalfaxHeader  \ Right-align the page title in the Galfax header
-
- LDX PATG               \ If PATG = 0, skip the following, so the Galfax header
- BEQ P%+6               \ resets to capitals for the column headers
-
- LDX #0                 \ Set QQ17 = 0 to switch to ALL CAPS
- STX QQ17
-
-                        \ --- End of added code ------------------------------->
 
  LDA #3                 \ Move the text cursor to row 3
  STA YC
@@ -25659,11 +25630,11 @@ ENDIF
 
  JSR DIALS              \ Call DIALS to update the dashboard
 
-                        \ --- Mod: Code added for Teletext Elite: ------------->
-
- JSR UpdateGalfaxPage   \ Update the Galfax page number
-
-                        \ --- End of added code ------------------------------->
+\                        \ --- Mod: Code added for Teletext Elite: ------------->
+\
+\ JSR UpdateGalfaxPage   \ Update the Galfax page number
+\
+\                        \ --- End of added code ------------------------------->
 
  LDA QQ11               \ If this is a space view, skip the following five
  BEQ P%+13              \ instructions (i.e. jump to JSR TT17 below)
