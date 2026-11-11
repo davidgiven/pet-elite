@@ -11,7 +11,7 @@ images.
 
 ![A glorious screenshot](pet-screenshot.jpg)
 
-Also, [watch the video](https://www.youtube.com/watch?v=96OwwVGcTuE)
+Also, [watch the video](https://www.youtube.com/watch?v=96OwwVGcTuE)!
 
 The code is a mess. It needs some major cleaning up. It also looks and plays
 like arse, due to the PET's CPU being half the speed of the BBC Micro's and the
@@ -20,7 +20,7 @@ it's still pretty good for a machine which technically can't do graphics at all!
 
 To play:
 
-- get [5-compiled-game-discs/pet-elite.d64]
+- get [pet-elite.d64](5-compiled-game-discs/pet-elite.d64)
 - put it on a 2031 disk, or load it into an emulator
 - SHIFT + RUN/STOP
 - enjoy!
@@ -54,3 +54,9 @@ keyboard you still have to enter numbers on the keypad.
 Please don't hassle the upstream authors about this. Any bugs are strictly my
 own fault. If you're interested, look at [README.original.md] for the original
 documentation (very little of which currently applies).
+
+## License
+
+None. Elite is abandonware, which means that distributing it is technically
+illegal but that there isn't anyone left to care. So I'm not actually allowed to
+do this. Here be dragons.
