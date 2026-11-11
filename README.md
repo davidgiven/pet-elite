@@ -42,7 +42,7 @@ keyboard you still have to enter numbers on the keypad.
 - Activate docking computer: `C`
 - Cancel docking computer: `P`
 - Throttle up/down: `SPACE` `?`
-- Change viuew:
+- Change view:
   - Graphics: `@` to `(`
   - Business: `←` to `9` (on the main keyboard)
 - Disc menu (when docked):
@@ -52,11 +52,20 @@ keyboard you still have to enter numbers on the keypad.
 ## Important
 
 Please don't hassle the upstream authors about this. Any bugs are strictly my
-own fault. If you're interested, look at [README.original.md] for the original
-documentation (very little of which currently applies).
+own fault. If you're interested, look at
+[README.original.md](README.original.md) for the original documentation (very
+little of which currently applies).
 
 ## License
 
 None. Elite is abandonware, which means that distributing it is technically
 illegal but that there isn't anyone left to care. So I'm not actually allowed to
 do this. Here be dragons.
+
+## Who
+
+I am David Given, a.k.a. [Poking Technology](https://www.youtube.com/@hjalfi) on
+Youtube. You might be interested in some of my other PET hacks, such as the
+[ptracker](https://cowlark.com/ptracker/) 3½-channel music tracker. You might
+like to [look at my website](https://cowlark.com). There may or may not be
+anything interesting there.
